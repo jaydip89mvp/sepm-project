@@ -1,0 +1,137 @@
+/* Reset styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f2f5;
+    min-height: 100vh;
+}
+
+/* Login container styles */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    background-color: #f0f2f5;
+}
+
+.login-box {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-box h2 {
+    text-align: center;
+    color: #1a1a1a;
+    margin-bottom: 10px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.subtitle {
+    text-align: center;
+    color: #65676b;
+    margin-bottom: 30px;
+    font-size: 15px;
+}
+
+/* Form styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #1a1a1a;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #dddfe2;
+    border-radius: 6px;
+    font-size: 15px;
+    color: #1a1a1a;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #1877f2;
+    box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+}
+
+.form-group input::placeholder {
+    color: #90949c;
+}
+
+.form-group input:disabled {
+    background-color: #f0f2f5;
+    cursor: not-allowed;
+}
+
+/* Error message styles */
+.error-message {
+    color: #dc3545;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #ffd2d2;
+    border-radius: 4px;
+}
+
+/* Button styles */
+.login-button {
+    width: 100%;
+    padding: 12px;
+    background-color: #1877f2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.login-button:hover {
+    background-color: #166fe5;
+}
+
+.login-button:disabled {
+    background-color: #e4e6eb;
+    cursor: not-allowed;
+}
+
+/* Responsive styles */
+@media (max-width: 480px) {
+    .login-box {
+        padding: 20px;
+    }
+
+    .login-box h2 {
+        font-size: 20px;
+    }
+
+    .form-group input {
+        padding: 10px;
+    }
+
+    .login-button {
+        padding: 10px;
+    }
+}

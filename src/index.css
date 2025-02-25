@@ -1,0 +1,48 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+}
+
+input {
+  font-family: inherit;
+}
+
+/* Remove default focus outline and add custom one */
+:focus {
+  outline: none;
+}
+
+/* Basic link styles */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Remove list styles */
+ul, ol {
+  list-style: none;
+}
+
+/* Responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+}
