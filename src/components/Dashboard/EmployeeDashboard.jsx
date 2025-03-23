@@ -11,6 +11,7 @@ import {
   Container,
   Paper,
   Grid,
+  Grid2,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -21,6 +22,7 @@ import {
   History,
   Send,
 } from '@mui/icons-material';
+import Profile from '../Profile'; // Adjust the path if needed
 
 import AddProduct from '../AddProduct';
 import UpdateStock from '../UpdateStock';
@@ -44,6 +46,8 @@ const EmployeeDashboard = () => {
 
   const renderContent = () => {
     switch (selectedMenu) {
+      case 'profile':
+        return <Profile></Profile>
       case 'dashboard':
         return <DashboardContent />;
       case 'products':
@@ -104,29 +108,38 @@ const EmployeeDashboard = () => {
 };
 
 // Dashboard Content Component
+// Dashboard Content Component
 const DashboardContent = () => {
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
-          Dashboard Overview
-        </Typography>
-      </Grid>
-      <Grid item xs={12} md={8}>
+      {/* Left Side */}
+      <Grid item xs={12} md={6}>
         <Paper sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Products Overview
+          </Typography>
           <ProductsTable />
         </Paper>
       </Grid>
-      <Grid item xs={12} md={4}>
+
+      {/* Right Side */}
+      <Grid item xs={12} md={6}>
         <Paper sx={{ p: 2, mb: 2 }}>
-          <Typography>Stock Management</Typography>
+          <Typography variant="h6" gutterBottom>
+            Stock Management
+          </Typography>
+          {/* Additional stock management content here */}
         </Paper>
         <Paper sx={{ p: 2 }}>
-          <Typography>Notifications</Typography>
+          <Typography variant="h6" gutterBottom>
+            Notifications
+          </Typography>
+          {/* Notifications content here */}
         </Paper>
       </Grid>
     </Grid>
   );
 };
+
 
 export default EmployeeDashboard;

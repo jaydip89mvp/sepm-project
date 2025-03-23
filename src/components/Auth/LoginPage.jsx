@@ -18,7 +18,7 @@ export const LoginPage = () => {
       [name]: value
     }))
   }
-
+const role='admin'
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -29,29 +29,9 @@ export const LoginPage = () => {
       setIsLoading(false)
       return
     }
-
-    try {
-      const response = await fetch('http://localhost:8080/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed')
-      }
-
-      // Store the token and user info in localStorage
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('userRole', data.role)
-      localStorage.setItem('userData', JSON.stringify(data.user))
-
+    
       // Route based on user role
-      switch (data.role.toLowerCase()) {
+      switch (role) {
         case 'admin':
           navigate('/admin/dashboard')
           break
@@ -64,12 +44,48 @@ export const LoginPage = () => {
         default:
           throw new Error('Invalid role')
       }
+    // try {
+    //   const response = await fetch('http://localhost:8080/api/auth/login', {
+    //     method: 'POST',
+    //     headers: {
+    //       'Content-Type': 'application/json',
+    //     },
+    //     body: JSON.stringify(formData)
+    //   })
 
-    } catch (err) {
-      setError(err.message || 'Invalid username or password')
-    } finally {
-      setIsLoading(false)
-    }
+    //   const data = await response.json()
+
+    //   if (!response.ok) {
+    //     throw new Error(data.message || 'Login failed')
+    //   }
+
+    //   // Store the token and user info in localStorage
+    //   localStorage.setItem('token', data.token)
+    //   localStorage.setItem('userRole', data.role)
+    //   localStorage.setItem('userData', JSON.stringify(data.user))
+       
+    //   const role='admin'
+    //   // Route based on user role
+    //   switch ('role') {
+    //     case 'admin':
+    //       navigate('/admin/dashboard')
+    //       break
+    //     case 'manager':
+    //       navigate('/manager/dashboard')
+    //       break
+    //     case 'employee':
+    //       navigate('/employee/dashboard')
+    //       break
+    //     default:
+    //       throw new Error('Invalid role')
+    //   }
+
+    // } catch (err) {
+    //   setError(err.message || 'Invalid username or password')
+    // } finally {
+    //   setIsLoading(false)
+    // }
+    
   }
 
   return (
