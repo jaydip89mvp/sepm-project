@@ -111,19 +111,19 @@ const EmployeeDashboard = () => {
 // Dashboard Content Component
 const DashboardContent = () => {
   return (
-    <Grid container spacing={3}>
+    <Grid2 container spacing={3}>
       {/* Left Side */}
-      <Grid item xs={12} md={6}>
+      <Grid2 item xs={12} md={6}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="h6" gutterBottom>
             Products Overview
           </Typography>
           <ProductsTable />
         </Paper>
-      </Grid>
+      </Grid2>
 
       {/* Right Side */}
-      <Grid item xs={12} md={6}>
+      <Grid2 item xs={12} md={6}>
         <Paper sx={{ p: 2, mb: 2 }}>
           <Typography variant="h6" gutterBottom>
             Stock Management
@@ -136,8 +136,8 @@ const DashboardContent = () => {
           </Typography>
           {/* Notifications content here */}
         </Paper>
-      </Grid>
-    </Grid>
+      </Grid2>
+    </Grid2>
   );
 };
 
