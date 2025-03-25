@@ -1,26 +1,16 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom';
+import { useSelector } from 'react-redux'; // Import useSelector from react-redux
+const ProtectedRoute = ({ allowedRoles }) => {
+  const token = useSelector((state) => state.auth.token);
+  const role = useSelector((state) => state.auth.role);
 
-export const ProtectedRoute = ({ children, allowedRoles }) => {
-  const token = localStorage.getItem('token')
-  const userRole = localStorage.getItem('userRole')
+  console.log('Token:', token); // Debugging output
+  console.log('Role:', role);   // Debugging output
 
-  if (!token) {
-    return <Navigate to="/login" replace />
-  }
+  // If no token, redirect to login page
+  
 
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
-    // Redirect to appropriate dashboard based on role
-    switch (userRole.toLowerCase()) {
-      case 'admin':
-        return <Navigate to="/admin/dashboard" replace />
-      case 'manager':
-        return <Navigate to="/manager/dashboard" replace />
-      case 'employee':
-        return <Navigate to="/employee/dashboard" replace />
-      default:
-        return <Navigate to="/login" replace />
-    }
-  }
-
-  return children
-}
+  // If role is not allowed, redirect to unauthorized page
+  return allowedRoles.includes(role) ? <Outlet /> : <Navigate to="/unauthorized" replace />;
+};
+export default ProtectedRoute;
