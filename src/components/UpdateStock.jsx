@@ -8,20 +8,33 @@ import {
   Autocomplete,
 } from '@mui/material';
 
-const UpdateStock = () => {
+const UpdateStock = ({ products, onUpdate }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState('');
-
-  // Mock products data - replace with API call
-  const products = [
-    { id: 1, name: 'Product 1', currentStock: 100 },
-    { id: 2, name: 'Product 2', currentStock: 50 },
-  ];
+  const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Add API call to update stock
-    console.log('Update stock:', { product: selectedProduct, quantity });
+    if (!selectedProduct || !quantity) {
+      setError('Please fill all required fields');
+      return;
+    }
+    
+    const newQuantity = selectedProduct.currentStock + parseInt(quantity);
+    if (newQuantity < 0) {
+      setError('Cannot reduce stock below 0');
+      return;
+    }
+    
+    onUpdate({
+      ...selectedProduct,
+      currentStock: newQuantity
+    });
+    
+    // Reset form
+    setSelectedProduct(null);
+    setQuantity('');
+    setError('');
   };
 
   return (
