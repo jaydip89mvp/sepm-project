@@ -3,7 +3,7 @@ import { Card, CardContent, Typography, Avatar, Box } from '@mui/material';
 
 const Profile = () => {
   const name = 'Jaydip Kshirsagar';
-  const role = 'Employee';
+  const role = 'admin';
 
   return (
     <Card sx={{ maxWidth: 345, margin: '20px auto', boxShadow: 3, borderRadius: 2 }}>

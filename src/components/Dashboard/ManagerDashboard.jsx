@@ -12,6 +12,11 @@ import {
   MenuItem,
   IconButton,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogActions,
+  Button,
+  CircularProgress,
 } from '@mui/material';
 import {
   AccountCircle,
@@ -40,10 +45,21 @@ const theme = createTheme({
   },
 });
 
+const sections = [
+  { id: 'employees', label: 'Employees', component: EmployeeManagement },
+  { id: 'categories', label: 'Categories', component: CategoryManagement },
+  { id: 'orders', label: 'Orders', component: OrderManagement },
+  { id: 'payments', label: 'Payments', component: PaymentManagement },
+  { id: 'reports', label: 'Reports', component: ReportGeneration },
+];
+
 const ManagerDashboard = () => {
   const navigate = useNavigate();
   const [selectedSection, setSelectedSection] = useState('employees');
   const [anchorEl, setAnchorEl] = useState(null);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   // Handle Profile Menu
   const handleMenuOpen = (event) => {
@@ -60,29 +76,56 @@ const ManagerDashboard = () => {
   };
 
   const handleLogout = () => {
-    // Add your logout logic here
-    localStorage.removeItem('token'); // Remove auth token
-    navigate('/login'); // Redirect to login page
+    setLogoutDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const confirmLogout = async () => {
+    try {
+      setIsLoading(true);
+      // Add your logout API call here if needed
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setLogoutDialogOpen(false);
+      navigate('/login');
+    } catch (error) {
+      setError('Failed to logout. Please try again.');
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const renderSection = () => {
-    switch (selectedSection) {
-      case 'profile':
+    try {
+      if (selectedSection === 'profile') {
         return <Profile />;
-      case 'employees':
+      }
+
+      const section = sections.find(s => s.id === selectedSection);
+      if (!section) {
         return <EmployeeManagement />;
-      case 'categories':
-        return <CategoryManagement />;
-      case 'orders':
-        return <OrderManagement />;
-      case 'payments':
-        return <PaymentManagement />;
-      case 'reports':
-        return <ReportGeneration />;
-      default:
-        return <EmployeeManagement />;
+      }
+
+      const Component = section.component;
+      return <Component />;
+    } catch (error) {
+      console.error('Error rendering section:', error);
+      return (
+        <Typography color="error">
+          An error occurred while loading this section. Please try again.
+        </Typography>
+      );
     }
   };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -113,12 +156,6 @@ const ManagerDashboard = () => {
                   overflow: 'visible',
                   filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                   mt: 1.5,
-                  '& .MuiAvatar-root': {
-                    width: 32,
-                    height: 32,
-                    ml: -0.5,
-                    mr: 1,
-                  },
                 },
               }}
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
@@ -134,26 +171,32 @@ const ManagerDashboard = () => {
             </Menu>
           </Box>
           
+          {error && (
+            <Typography color="error" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
+          )}
+
           <Grid container spacing={3}>
             {/* Navigation Cards */}
             <Grid container item spacing={2} xs={12}>
-              {['Employees', 'Categories', 'Orders', 'Payments', 'Reports'].map((section) => (
-                <Grid item xs={12} sm={6} md={2.4} key={section}>
+              {sections.map(({ id, label }) => (
+                <Grid item xs={12} sm={6} md={2.4} key={id}>
                   <Paper
                     sx={{
                       p: 2,
                       textAlign: 'center',
                       cursor: 'pointer',
-                      backgroundColor: selectedSection === section.toLowerCase() ? 'primary.main' : 'background.paper',
-                      color: selectedSection === section.toLowerCase() ? 'white' : 'primary.main',
+                      backgroundColor: selectedSection === id ? 'primary.main' : 'background.paper',
+                      color: selectedSection === id ? 'white' : 'primary.main',
                       '&:hover': {
                         backgroundColor: 'primary.light',
                         color: 'white',
                       },
                     }}
-                    onClick={() => setSelectedSection(section.toLowerCase())}
+                    onClick={() => setSelectedSection(id)}
                   >
-                    <Typography variant="h6">{section}</Typography>
+                    <Typography variant="h6">{label}</Typography>
                   </Paper>
                 </Grid>
               ))}
@@ -168,6 +211,30 @@ const ManagerDashboard = () => {
           </Grid>
         </Container>
       </Box>
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={() => setLogoutDialogOpen(false)}
+      >
+        <DialogTitle>Are you sure you want to logout?</DialogTitle>
+        <DialogActions>
+          <Button 
+            onClick={() => setLogoutDialogOpen(false)}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmLogout}
+            color="primary"
+            variant="contained"
+            disabled={isLoading}
+          >
+            {isLoading ? <CircularProgress size={24} /> : 'Logout'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ThemeProvider>
   );
 };

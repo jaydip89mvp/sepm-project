@@ -11,8 +11,16 @@ import {
   Container,
   Paper,
   Grid,
-  Grid2,
   Alert,
+  IconButton,
+  Menu,
+  MenuItem,
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogActions,
+  Button,
+  CircularProgress,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -23,8 +31,11 @@ import {
   History,
   Send,
   Person,
+  ExitToApp,
+  AccountCircle,
 } from '@mui/icons-material';
 import Profile from '../Profile'; // Adjust the path if needed
+import { useNavigate } from 'react-router-dom';
 
 import AddProduct from '../AddProduct';
 import UpdateStock from '../UpdateStock';
@@ -46,16 +57,35 @@ const EmployeeDashboard = () => {
   const [products, setProducts] = useState(mockProducts);
   const [categories, setCategories] = useState(mockCategories);
   const [notification, setNotification] = useState(null);
+  const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Simulate API calls
-  const fetchProducts = () => {
-    // In real implementation, this would be an API call
-    setProducts(mockProducts);
+  // Simulate API calls with loading state
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      // In real implementation, this would be an API call
+      setProducts(mockProducts);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load products');
+      console.error('Error fetching products:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const fetchCategories = () => {
-    // In real implementation, this would be an API call
-    setCategories(mockCategories);
+  const fetchCategories = async () => {
+    try {
+      // In real implementation, this would be an API call
+      setCategories(mockCategories);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setError('Failed to load categories');
+    }
   };
 
   useEffect(() => {
@@ -80,6 +110,25 @@ const EmployeeDashboard = () => {
     setNotification({ type: 'success', message: 'Product deleted successfully!' });
   };
 
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    setLogoutDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const confirmLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+    setLogoutDialogOpen(false);
+  };
+
   const menuItems = [
     { id: 'dashboard', text: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'profile', text: 'Profile', icon: <Person /> },
@@ -92,23 +141,58 @@ const EmployeeDashboard = () => {
   ];
 
   const renderContent = () => {
+    if (isLoading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    if (error) {
+      return (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      );
+    }
+
     switch (selectedMenu) {
       case 'profile':
         return <Profile />;
       case 'dashboard':
-        return <DashboardContent products={products} />;
+        return <DashboardContent 
+          products={products}
+          onDelete={handleDeleteProduct}
+          onEdit={handleUpdateProduct}
+        />;
       case 'products':
-        return <ProductsTable products={products} onDelete={handleDeleteProduct} onEdit={handleUpdateProduct} />;
+        return <ProductsTable 
+          products={products} 
+          onDelete={handleDeleteProduct} 
+          onEdit={handleUpdateProduct}
+        />;
       case 'addProduct':
-        return <AddProduct onAdd={handleAddProduct} categories={categories} />;
+        return <AddProduct 
+          onAdd={handleAddProduct} 
+          categories={categories}
+          setNotification={setNotification}
+        />;
       case 'updateStock':
-        return <UpdateStock products={products} onUpdate={handleUpdateProduct} />;
+        return <UpdateStock 
+          products={products} 
+          onUpdate={handleUpdateProduct}
+          setNotification={setNotification}
+        />;
       case 'lowStock':
         return <LowStockAlerts products={products} threshold={10} />;
       case 'stockHistory':
         return <StockHistory />;
       case 'requestStock':
-        return <RequestStock products={products} />;
+        return <RequestStock 
+          products={products}
+          setNotification={setNotification}
+        />;
       default:
         return <DashboardContent products={products} />;
     }
@@ -149,6 +233,42 @@ const EmployeeDashboard = () => {
       {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: '#fff' }}>
         <Container maxWidth="lg" sx={{ mt: 8 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+            <IconButton
+              size="large"
+              onClick={handleMenuOpen}
+              color="primary"
+            >
+              <AccountCircle />
+            </IconButton>
+            
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+              PaperProps={{
+                elevation: 0,
+                sx: {
+                  overflow: 'visible',
+                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                  mt: 1.5,
+                },
+              }}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            >
+              <MenuItem onClick={() => {
+                setSelectedMenu('profile');
+                handleMenuClose();
+              }}>
+                <Person sx={{ mr: 2 }} /> Profile
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleLogout}>
+                <ExitToApp sx={{ mr: 2 }} /> Logout
+              </MenuItem>
+            </Menu>
+          </Box>
           {notification && (
             <Alert 
               severity={notification.type} 
@@ -161,12 +281,38 @@ const EmployeeDashboard = () => {
           {renderContent()}
         </Container>
       </Box>
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={() => setLogoutDialogOpen(false)}
+      >
+        <DialogTitle>Are you sure you want to logout?</DialogTitle>
+        <DialogActions>
+          <Button onClick={() => setLogoutDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmLogout}
+            color="primary"
+            variant="contained"
+          >
+            Logout
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
 
 // Dashboard Content Component
-const DashboardContent = ({ products }) => {
+const DashboardContent = ({ products, onDelete, onEdit }) => {
+  if (!products) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Grid container spacing={3}>
       {/* Left Side */}
@@ -179,7 +325,11 @@ const DashboardContent = ({ products }) => {
           <Typography variant="h6" gutterBottom color="primary">
             Products Overview
           </Typography>
-          <ProductsTable products={products} />
+          <ProductsTable 
+            products={products} 
+            onDelete={onDelete}
+            onEdit={onEdit}
+          />
         </Paper>
       </Grid>
 
