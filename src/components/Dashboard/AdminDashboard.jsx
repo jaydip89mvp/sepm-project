@@ -1,162 +1,145 @@
 import React, { useState } from 'react';
 import {
   Box,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
   Typography,
   Container,
   Paper,
   Grid2,
-  Card,
-  CardContent,
-  CardHeader,
+  ThemeProvider,
+  createTheme,
 } from '@mui/material';
 import {
-  Dashboard as DashboardIcon,
-  People,
-  BarChart,
-  Settings,
-  Inventory,
-  Delete,
+  Dashboard,
   AddBox,
+  People,
+  Inventory,
   Assignment,
   Group,
+  AccountCircle,
 } from '@mui/icons-material';
-import AddCategory from '../adminsidebar/AddCategory';
-import AddCustomer from '../adminsidebar/AddCustomer';
-import AddManager from '../adminsidebar/AddManager';
-import AddSupplier from '../adminsidebar/AddSupplier';
-import DeleteCustomer from '../adminsidebar/DeleteCustomer';
-import DeleteManager from '../adminsidebar/DeleteManager';
-import DeleteSupplier from '../adminsidebar/DeleteSupplier';
+
+// Import only the available components
+import Categorymanagement from '../adminsidebar/Categorymanagement';
+import Customermanagement from '../adminsidebar/Customermanagement';
+import Suppliermanagement from '../adminsidebar/Suppliermanagement';
+import Managermanagement from '../adminsidebar/Managermanagement';
 import Report from '../adminsidebar/Report';
-import ShowCustomers from '../adminsidebar/ShowCustomers';
-import ShowManager from '../adminsidebar/ShowManager';
-import ShowSupplier from '../adminsidebar/ShowSupplier';
-import UpdateRole from '../adminsidebar/UpdateRole';
+
+// Theme for styling
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2', // Blue
+      light: '#42a5f5',
+      dark: '#1565c0',
+    },
+    background: {
+      default: '#ffffff',
+      paper: '#f8f9fa',
+    },
+  },
+});
 
 const AdminDashboard = () => {
   const [selectedMenu, setSelectedMenu] = useState('dashboard');
 
   const menuItems = [
-    { id: 'dashboard', text: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'addCategory', text: 'Add New Category', icon: <AddBox /> },
-    { id: 'addCustomer', text: 'Add Customer', icon: <People /> },
-    { id: 'addManager', text: 'Add Manager', icon: <Group /> },
-    { id: 'addSupplier', text: 'Add Supplier', icon: <Inventory /> },
-    { id: 'deleteCustomer', text: 'Delete Customer', icon: <Delete /> },
-    { id: 'deleteManager', text: 'Delete Manager', icon: <Delete /> },
-    { id: 'deleteSupplier', text: 'Delete Supplier', icon: <Delete /> },
-    { id: 'report', text: 'Generate Report', icon: <Assignment /> },
-    { id: 'showCustomers', text: 'Show Customers', icon: <People /> },
-    { id: 'showManager', text: 'Show Managers', icon: <Group /> },
-    { id: 'showSupplier', text: 'Show Supplier', icon: <Inventory /> },
-    { id: 'updateRole', text: 'Update Role', icon: <Settings /> },
+    { id: 'dashboard', text: 'Dashboard', icon: <Dashboard fontSize="large" /> },
+    { id: 'categoryManagement', text: 'Category Management', icon: <AddBox fontSize="large" /> },
+    { id: 'customerManagement', text: 'Customer Management', icon: <People fontSize="large" /> },
+    { id: 'managerManagement', text: 'Manager Management', icon: <Group fontSize="large" /> },
+    { id: 'supplierManagement', text: 'Supplier Management', icon: <Inventory fontSize="large" /> },
+    { id: 'report', text: 'Generate Report', icon: <Assignment fontSize="large" /> },
+    { id: 'profile', text: 'Profile', icon: <AccountCircle fontSize="large" /> },
   ];
 
   const renderContent = () => {
     switch (selectedMenu) {
       case 'dashboard':
         return <DashboardContent />;
-      case 'addCategory':
-        return <AddCategory />;
-      case 'addCustomer':
-        return <AddCustomer />;
-      case 'addManager':
-        return <AddManager />;
-      case 'addSupplier':
-        return <AddSupplier />;
-      case 'deleteCustomer':
-        return <DeleteCustomer />;
-      case 'deleteManager':
-        return <DeleteManager />;
-      case 'deleteSupplier':
-        return <DeleteSupplier />;
+      case 'categoryManagement':
+        return <Categorymanagement />;
+      case 'customerManagement':
+        return <Customermanagement />;
+      case 'managerManagement':
+        return <Managermanagement />;
+      case 'supplierManagement':
+        return <Suppliermanagement />;
       case 'report':
         return <Report />;
-      case 'showCustomers':
-        return <ShowCustomers />;
-      case 'showManager':
-        return <ShowManager />;
-      case 'showSupplier':
-        return <ShowSupplier />;
-      case 'updateRole':
-        return <UpdateRole />;
+      case 'profile':
+        return <Typography variant="h5">Profile Section</Typography>;
       default:
-        return <DashboardContent />;
+        return <Typography variant="h5">Page Not Found</Typography>;
     }
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      {/* Sidebar */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: 240,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: 240,
-            boxSizing: 'border-box',
-          },
-        }}
-      >
-        <Box sx={{ overflow: 'auto', mt: 8 }}>
-          <List>
-            {menuItems.map((item) => (
-              <ListItemButton
-                key={item.id}
-                selected={selectedMenu === item.id}
-                onClick={() => setSelectedMenu(item.id)}
-              >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
-              </ListItemButton>
-            ))}
-          </List>
-        </Box>
-      </Drawer>
+    <ThemeProvider theme={theme}>
+      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: 'background.default' }}>
+        {/* Main Content */}
+        <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+          <Container maxWidth="xl">
+            <Typography variant="h4" sx={{ mb: 4, color: 'primary.main', textAlign: 'center' }}>
+              Admin Dashboard
+            </Typography>
 
-      {/* Main Content */}
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-        <Container maxWidth="lg" sx={{ mt: 8 }}>
-          {renderContent()}
-        </Container>
+            {/* Navigation Cards */}
+            <Grid2 container spacing={2} justifyContent="center">
+              {menuItems.map((item) => (
+                <Grid2 item xs={12} sm={6} md={3} key={item.id}>
+                  <Paper
+                    sx={{
+                      p: 2,
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: '120px', // Ensures uniform height
+                      backgroundColor: selectedMenu === item.id ? 'primary.main' : 'background.paper',
+                      color: selectedMenu === item.id ? 'white' : 'primary.main',
+                      '&:hover': {
+                        backgroundColor: 'primary.light',
+                        color: 'white',
+                      },
+                    }}
+                    onClick={() => setSelectedMenu(item.id)}
+                  >
+                    {item.icon}
+                    <Typography variant="h6">{item.text}</Typography>
+                  </Paper>
+                </Grid2>
+              ))}
+            </Grid2>
+
+            {/* Content Section */}
+            <Paper sx={{ p: 3, mt: 2 }}>{renderContent()}</Paper>
+          </Container>
+        </Box>
       </Box>
-    </Box>
+    </ThemeProvider>
   );
 };
 
 const DashboardContent = () => {
   return (
-    <Grid2 container spacing={3}>
-      <Grid2 item xs={12} md={4}>
-        <Card>
-          <CardHeader title="Total Users" />
-          <CardContent>
-            <Typography variant="h4">1,250</Typography>
-          </CardContent>
-        </Card>
-      </Grid2>
-      <Grid2 item xs={12} md={4}>
-        <Card>
-          <CardHeader title="Active Managers" />
-          <CardContent>
-            <Typography variant="h4">85</Typography>
-          </CardContent>
-        </Card>
-      </Grid2>
-      <Grid2 item xs={12} md={4}>
-        <Card>
-          <CardHeader title="Pending Approvals" />
-          <CardContent>
-            <Typography variant="h4">23</Typography>
-          </CardContent>
-        </Card>
-      </Grid2>
+    <Grid2 container spacing={3} justifyContent="center">
+      {[
+        { title: 'Total Users', value: '1,250' },
+        { title: 'Active Managers', value: '85' },
+        { title: 'Pending Approvals', value: '23' },
+        { title: 'Total Suppliers', value: '120' },
+        { title: 'Total Reports Generated', value: '50' },
+      ].map((item, index) => (
+        <Grid2 item xs={12} sm={6} md={3} key={index}>
+          <Paper sx={{ p: 3, textAlign: 'center', minHeight: '120px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Typography variant="h6">{item.title}</Typography>
+            <Typography variant="h4">{item.value}</Typography>
+          </Paper>
+        </Grid2>
+      ))}
     </Grid2>
   );
 };
