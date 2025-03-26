@@ -9,8 +9,9 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material';
+import { format } from 'date-fns';
 
-const StockHistory = () => {
+const StockHistory = ({ limit }) => {
   // Mock data - replace with API call
   const stockHistory = [
     {
@@ -23,6 +24,11 @@ const StockHistory = () => {
     },
     // Add more history entries
   ];
+
+  // Add sorting by date
+  const sortedHistory = stockHistory
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, limit);
 
   return (
     <Paper sx={{ p: 3 }}>
@@ -41,9 +47,11 @@ const StockHistory = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {stockHistory.map((record) => (
+            {sortedHistory.map((record) => (
               <TableRow key={record.id}>
-                <TableCell>{record.date}</TableCell>
+                <TableCell>
+                  {format(new Date(record.date), 'MMM dd, yyyy')}
+                </TableCell>
                 <TableCell>{record.productName}</TableCell>
                 <TableCell>{record.action}</TableCell>
                 <TableCell>{record.quantity}</TableCell>

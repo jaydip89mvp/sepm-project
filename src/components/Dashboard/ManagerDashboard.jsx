@@ -7,12 +7,24 @@ import {
   Typography,
   ThemeProvider,
   createTheme,
+  Avatar,
+  Menu,
+  MenuItem,
+  IconButton,
+  Divider,
 } from '@mui/material';
+import {
+  AccountCircle,
+  ExitToApp,
+  Person,
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import EmployeeManagement from './sections/EmployeeManagement';
 import CategoryManagement from './sections/CategoryManagement';
 import OrderManagement from './sections/OrderManagement';
 import PaymentManagement from './sections/PaymentManagement';
 import ReportGeneration from './sections/ReportGeneration';
+import Profile from '../Profile';
 
 const theme = createTheme({
   palette: {
@@ -29,10 +41,34 @@ const theme = createTheme({
 });
 
 const ManagerDashboard = () => {
+  const navigate = useNavigate();
   const [selectedSection, setSelectedSection] = useState('employees');
+  const [anchorEl, setAnchorEl] = useState(null);
+  
+  // Handle Profile Menu
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleProfile = () => {
+    setSelectedSection('profile');
+    handleMenuClose();
+  };
+
+  const handleLogout = () => {
+    // Add your logout logic here
+    localStorage.removeItem('token'); // Remove auth token
+    navigate('/login'); // Redirect to login page
+  };
 
   const renderSection = () => {
     switch (selectedSection) {
+      case 'profile':
+        return <Profile />;
       case 'employees':
         return <EmployeeManagement />;
       case 'categories':
@@ -52,9 +88,51 @@ const ManagerDashboard = () => {
     <ThemeProvider theme={theme}>
       <Box sx={{ backgroundColor: 'background.default', minHeight: '100vh', py: 4 }}>
         <Container maxWidth="xl">
-          <Typography variant="h4" sx={{ mb: 4, color: 'primary.main' }}>
-            Manager Dashboard
-          </Typography>
+          {/* Header with Profile Menu */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Typography variant="h4" sx={{ color: 'primary.main' }}>
+              Manager Dashboard
+            </Typography>
+            
+            <IconButton
+              size="large"
+              onClick={handleMenuOpen}
+              color="primary"
+              sx={{ ml: 2 }}
+            >
+              <AccountCircle />
+            </IconButton>
+            
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+              PaperProps={{
+                elevation: 0,
+                sx: {
+                  overflow: 'visible',
+                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                  mt: 1.5,
+                  '& .MuiAvatar-root': {
+                    width: 32,
+                    height: 32,
+                    ml: -0.5,
+                    mr: 1,
+                  },
+                },
+              }}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            >
+              <MenuItem onClick={handleProfile}>
+                <Person sx={{ mr: 2 }} /> Profile
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleLogout}>
+                <ExitToApp sx={{ mr: 2 }} /> Logout
+              </MenuItem>
+            </Menu>
+          </Box>
           
           <Grid container spacing={3}>
             {/* Navigation Cards */}

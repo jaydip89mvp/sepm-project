@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Paper,
   Typography,
@@ -10,26 +10,29 @@ import {
   TableRow,
   TextField,
   Box,
+  IconButton,
+  Tooltip,
+  CircularProgress,
 } from '@mui/material';
+import { Edit, Delete } from '@mui/icons-material';
 
-const ProductsTable = () => {
-  // Mock data - replace with API call
-  const products = [
-    {
-      id: 1,
-      name: 'Product 1',
-      category: 'Electronics',
-      price: 299.99,
-      quantity: 50,
-    },
-    {
-      id: 2,
-      name: 'Product 2',
-      category: 'Clothing',
-      price: 49.99,
-      quantity: 100,
-    },
-  ];
+const ProductsTable = ({ products = [], onDelete, onEdit }) => {
+  // Add search functionality
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Handle empty products array
+  if (!Array.isArray(products)) {
+    return (
+      <Paper sx={{ p: 3, textAlign: 'center' }}>
+        <CircularProgress />
+      </Paper>
+    );
+  }
+  
+  const filteredProducts = products.filter(product =>
+    product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product?.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Paper sx={{ p: 3 }}>
@@ -42,6 +45,8 @@ const ProductsTable = () => {
           label="Search Products"
           variant="outlined"
           sx={{ mb: 2 }}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </Box>
       <TableContainer>
@@ -53,18 +58,50 @@ const ProductsTable = () => {
               <TableCell>Category</TableCell>
               <TableCell>Price</TableCell>
               <TableCell>Quantity</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell>{product.id}</TableCell>
-                <TableCell>{product.name}</TableCell>
-                <TableCell>{product.category}</TableCell>
-                <TableCell>${product.price}</TableCell>
-                <TableCell>{product.quantity}</TableCell>
+            {filteredProducts.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} align="center">
+                  No products found
+                </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredProducts.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell>{product.id}</TableCell>
+                  <TableCell>{product.name}</TableCell>
+                  <TableCell>{product.category}</TableCell>
+                  <TableCell>${product.price?.toFixed(2)}</TableCell>
+                  <TableCell>{product.quantity}</TableCell>
+                  <TableCell>
+                    {onEdit && (
+                      <Tooltip title="Edit">
+                        <IconButton size="small" onClick={() => onEdit(product)}>
+                          <Edit />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {onDelete && (
+                      <Tooltip title="Delete">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this product?')) {
+                              onDelete(product.id);
+                            }
+                          }}
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>

@@ -14,7 +14,7 @@ import {
   Snackbar,
 } from '@mui/material';
 
-const AddProduct = () => {
+const AddProduct = ({ onAdd, categories }) => {
   const initialState = {
     name: '',
     category: '',
@@ -114,11 +114,11 @@ const AddProduct = () => {
                   label="Category"
                   onChange={handleChange}
                 >
-                  <MenuItem value="electronics">Electronics</MenuItem>
-                  <MenuItem value="clothing">Clothing</MenuItem>
-                  <MenuItem value="food">Food</MenuItem>
-                  <MenuItem value="books">Books</MenuItem>
-                  <MenuItem value="other">Other</MenuItem>
+                  {categories.map(category => (
+                    <MenuItem key={category} value={category.toLowerCase()}>
+                      {category}
+                    </MenuItem>
+                  ))}
                 </Select>
                 {errors.category && (
                   <Typography variant="caption" color="error">
