@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -17,31 +17,44 @@ import {
   Typography,
 } from "@mui/material";
 import { Edit, Delete, Add } from "@mui/icons-material";
+import axios from "axios";
 
-const Customermanagement = () => {
-  const [customers, setCustomers] = useState([
-    { name: "John Doe", email: "john@example.com", contact: "123-456-7890" },
-    { name: "Jane Smith", email: "jane@example.com", contact: "987-654-3210" },
-  ]);
+const API_URL = "https://your-api.com/customers";
+
+const CustomerManagement = () => {
+  const [customers, setCustomers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", contact: "" });
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await axios.get(API_URL);
+      setCustomers(response.data);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.contact) {
-      return;
-    }
+    if (!formData.name || !formData.email || !formData.contact) return;
 
-    if (editMode !== false) {
-      const updatedCustomers = [...customers];
-      updatedCustomers[editMode] = formData;
-      setCustomers(updatedCustomers);
-    } else {
-      setCustomers([...customers, formData]);
+    try {
+      if (editMode !== false) {
+        await axios.put(`${API_URL}/${customers[editMode].id}`, formData);
+      } else {
+        await axios.post(API_URL, formData);
+      }
+      fetchCustomers();
+      handleClose();
+    } catch (error) {
+      console.error("Error saving customer:", error);
     }
-
-    handleClose();
   };
 
   const handleEdit = (index) => {
@@ -50,8 +63,13 @@ const Customermanagement = () => {
     setOpen(true);
   };
 
-  const handleDelete = (index) => {
-    setCustomers(customers.filter((_, i) => i !== index));
+  const handleDelete = async (index) => {
+    try {
+      await axios.delete(`${API_URL}/${customers[index].id}`);
+      fetchCustomers();
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+    }
   };
 
   const handleClose = () => {
@@ -66,12 +84,10 @@ const Customermanagement = () => {
         Customer Management
       </Typography>
 
-      {/* Show Form Button */}
       <Button variant="contained" startIcon={<Add />} sx={{ mt: 3, mb: 2 }} onClick={() => setOpen(true)}>
-        Add customer
+        Add Customer
       </Button>
 
-      {/* Customer List */}
       <TableContainer component={Paper} sx={{ mt: 2 }}>
         <Table>
           <TableHead>
@@ -84,7 +100,7 @@ const Customermanagement = () => {
           </TableHead>
           <TableBody>
             {customers.map((customer, index) => (
-              <TableRow key={index}>
+              <TableRow key={customer.id}>
                 <TableCell>{customer.name}</TableCell>
                 <TableCell>{customer.email}</TableCell>
                 <TableCell>{customer.contact}</TableCell>
@@ -102,7 +118,6 @@ const Customermanagement = () => {
         </Table>
       </TableContainer>
 
-      {/* Add/Edit Dialog */}
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>{editMode !== false ? "Edit Customer" : "Add New Customer"}</DialogTitle>
         <DialogContent>
@@ -144,4 +159,4 @@ const Customermanagement = () => {
   );
 };
 
-export default Customermanagement;
+export default CustomerManagement;

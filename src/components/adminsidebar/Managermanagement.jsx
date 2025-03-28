@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -21,45 +21,60 @@ import {
   InputLabel,
 } from "@mui/material";
 import { Edit, Delete, Add } from "@mui/icons-material";
+import axios from "axios";
 
-// Mock Data
-const initialManagers = [
-  { name: "Manager A", email: "managerA@example.com", role: "Electronics", contact: "1234567890", salary: "50000" },
-  { name: "Manager B", email: "managerB@example.com", role: "Sports", contact: "9876543210", salary: "55000" }
-];
-
-const unassignedRoles = ["Home Appliances", "Fashion", "Toys"];
+const API_URL = "https://api.example.com/managers";
 
 const Managermanagement = () => {
-  const [managers, setManagers] = useState(initialManagers);
+  const [managers, setManagers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", role: "", contact: "", salary: "" });
 
-  // Handle Input Change
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  useEffect(() => {
+    fetchManagers();
+  }, []);
 
-  // Add or Edit Manager
-  const handleSubmit = () => {
-    if (editMode) {
-      setManagers(managers.map((m) => (m.email === formData.email ? formData : m)));
-    } else {
-      setManagers([...managers, formData]);
+  const fetchManagers = async () => {
+    try {
+      const response = await axios.get(API_URL);
+      setManagers(response.data);
+    } catch (error) {
+      console.error("Error fetching managers:", error);
     }
-    handleClose();
   };
 
-  // Delete Manager
-  const handleDeleteManager = (email) => setManagers(managers.filter((m) => m.email !== email));
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // Open Add/Edit Dialog
+  const handleSubmit = async () => {
+    try {
+      if (editMode) {
+        await axios.put(`${API_URL}/${formData.email}`, formData);
+      } else {
+        await axios.post(API_URL, formData);
+      }
+      fetchManagers();
+      handleClose();
+    } catch (error) {
+      console.error("Error saving manager:", error);
+    }
+  };
+
+  const handleDeleteManager = async (email) => {
+    try {
+      await axios.delete(`${API_URL}/${email}`);
+      fetchManagers();
+    } catch (error) {
+      console.error("Error deleting manager:", error);
+    }
+  };
+
   const handleOpen = (manager = null) => {
     setEditMode(!!manager);
     setFormData(manager || { name: "", email: "", role: "", contact: "", salary: "" });
     setOpen(true);
   };
 
-  // Close Dialog
   const handleClose = () => {
     setOpen(false);
     setEditMode(false);
@@ -71,13 +86,9 @@ const Managermanagement = () => {
       <Typography variant="h4" color="primary" textAlign="center">
         Manager Management
       </Typography>
-
-      {/* Add Manager Button */}
       <Button variant="contained" startIcon={<Add />} sx={{ mt: 3, mb: 2 }} onClick={() => handleOpen()}>
         Add Manager
       </Button>
-
-      {/* Managers Table */}
       <TableContainer component={Paper} sx={{ mb: 3 }}>
         <Table>
           <TableHead>
@@ -111,21 +122,17 @@ const Managermanagement = () => {
           </TableBody>
         </Table>
       </TableContainer>
-
-      {/* Add/Edit Manager Dialog */}
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>{editMode ? "Edit Manager" : "Add Manager"}</DialogTitle>
         <DialogContent>
           <TextField label="Full Name" name="name" fullWidth variant="outlined" sx={{ mt: 2 }} value={formData.name} onChange={handleChange} />
-          <TextField label="Email Address" name="email" fullWidth variant="outlined" sx={{ mt: 2 }} value={formData.email} onChange={handleChange} />
+          <TextField label="Email Address" name="email" fullWidth variant="outlined" sx={{ mt: 2 }} value={formData.email} onChange={handleChange} disabled={editMode} />
           <FormControl fullWidth sx={{ mt: 2 }}>
             <InputLabel>Role</InputLabel>
             <Select name="role" value={formData.role} onChange={handleChange}>
-              {unassignedRoles.map((role) => (
-                <MenuItem key={role} value={role}>
-                  {role}
-                </MenuItem>
-              ))}
+              <MenuItem value="Home Appliances">Home Appliances</MenuItem>
+              <MenuItem value="Fashion">Fashion</MenuItem>
+              <MenuItem value="Toys">Toys</MenuItem>
             </Select>
           </FormControl>
           <TextField label="Contact Number" name="contact" fullWidth variant="outlined" sx={{ mt: 2 }} value={formData.contact} onChange={handleChange} />

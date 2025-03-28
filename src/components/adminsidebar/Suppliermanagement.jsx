@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -15,31 +15,59 @@ import {
   Paper,
   IconButton,
   Typography,
+  CircularProgress
 } from '@mui/material';
 import { Delete, Add } from '@mui/icons-material';
+import axios from 'axios';
+
+const API_URL = 'http://localhost:8080/admin/suppliers'; // Change this to your actual backend API endpoint
 
 const SupplierManagement = () => {
   // State for Suppliers
-  const [suppliers, setSuppliers] = useState([
-    { name: 'Supplier A', company: 'Company A' },
-    { name: 'Supplier B', company: 'Company B' }
-  ]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // State for Managing Form
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', company: '' });
 
+  // Fetch suppliers from API on component mount
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const response = await axios.get(API_URL);
+        setSuppliers(response.data);
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch suppliers');
+        setLoading(false);
+      }
+    };
+    fetchSuppliers();
+  }, []);
+
   // Handle Add Supplier
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSuppliers([...suppliers, formData]);
-    setOpen(false);
-    setFormData({ name: '', company: '' });
+    try {
+      const response = await axios.post(API_URL, formData);
+      setSuppliers([...suppliers, response.data]); // Update state with new supplier
+      setOpen(false);
+      setFormData({ name: '', company: '' });
+    } catch (err) {
+      alert('Failed to add supplier');
+    }
   };
 
   // Handle Delete Supplier
-  const handleDelete = (name) => {
-    setSuppliers(suppliers.filter(sup => sup.name !== name));
+  const handleDelete = async (name) => {
+    try {
+      await axios.delete(`${API_URL}/${name}`);
+      setSuppliers(suppliers.filter(sup => sup.name !== name)); // Remove from state
+    } catch (err) {
+      alert('Failed to delete supplier');
+    }
   };
 
   return (
@@ -53,7 +81,11 @@ const SupplierManagement = () => {
       >
         Add Supplier
       </Button>
-      
+
+      {/* Show loading spinner */}
+      {loading && <CircularProgress />}
+      {error && <Typography color="error">{error}</Typography>}
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>

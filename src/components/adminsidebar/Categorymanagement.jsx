@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -17,29 +17,43 @@ import {
   Typography,
 } from "@mui/material";
 import { Edit, Delete, Add } from "@mui/icons-material";
+import axios from "axios";
 
-const Categorymanagement = () => {
-  const [categories, setCategories] = useState([
-    { name: "Electronics", description: "Devices and gadgets" },
-    { name: "Clothing", description: "Apparel and accessories" },
-    { name: "Books", description: "Educational and fictional books" },
-  ]);
+const API_URL = "https://your-api-endpoint.com/categories";
+
+const CategoryManagement = () => {
+  const [categories, setCategories] = useState([]);
   const [open, setOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(null);
   const [formData, setFormData] = useState({ name: "", description: "" });
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(API_URL);
+      setCategories(response.data);
+    } catch (error) {
+      console.error("Error fetching categories", error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.description.trim()) return;
 
-    if (editMode !== false) {
-      const updatedCategories = [...categories];
-      updatedCategories[editMode] = formData;
-      setCategories(updatedCategories);
-    } else {
-      setCategories([...categories, formData]);
+    try {
+      if (editMode !== null) {
+        await axios.put(`${API_URL}/${categories[editMode].id}`, formData);
+      } else {
+        await axios.post(API_URL, formData);
+      }
+      fetchCategories();
+    } catch (error) {
+      console.error("Error saving category", error);
     }
-
     handleClose();
   };
 
@@ -49,14 +63,19 @@ const Categorymanagement = () => {
     setOpen(true);
   };
 
-  const handleDelete = (index) => {
-    setCategories(categories.filter((_, i) => i !== index));
+  const handleDelete = async (index) => {
+    try {
+      await axios.delete(`${API_URL}/${categories[index].id}`);
+      fetchCategories();
+    } catch (error) {
+      console.error("Error deleting category", error);
+    }
   };
 
   const handleClose = () => {
     setOpen(false);
     setFormData({ name: "", description: "" });
-    setEditMode(false);
+    setEditMode(null);
   };
 
   return (
@@ -65,12 +84,10 @@ const Categorymanagement = () => {
         Category Management
       </Typography>
 
-      {/* Show Form Button */}
       <Button variant="contained" startIcon={<Add />} sx={{ mt: 3, mb: 2 }} onClick={() => setOpen(true)}>
         Add Category
       </Button>
 
-      {/* Category List */}
       <TableContainer component={Paper} sx={{ mt: 2 }}>
         <Table>
           <TableHead>
@@ -82,7 +99,7 @@ const Categorymanagement = () => {
           </TableHead>
           <TableBody>
             {categories.map((category, index) => (
-              <TableRow key={index}>
+              <TableRow key={category.id}>
                 <TableCell>{category.name}</TableCell>
                 <TableCell>{category.description}</TableCell>
                 <TableCell>
@@ -99,9 +116,8 @@ const Categorymanagement = () => {
         </Table>
       </TableContainer>
 
-      {/* Add/Edit Dialog */}
       <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>{editMode !== false ? "Edit Category" : "Add New Category"}</DialogTitle>
+        <DialogTitle>{editMode !== null ? "Edit Category" : "Add New Category"}</DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
             <TextField
@@ -125,7 +141,7 @@ const Categorymanagement = () => {
                 Cancel
               </Button>
               <Button variant="contained" color="primary" type="submit">
-                {editMode !== false ? "Update Category" : "Add Category"}
+                {editMode !== null ? "Update Category" : "Add Category"}
               </Button>
             </Box>
           </Box>
@@ -135,4 +151,4 @@ const Categorymanagement = () => {
   );
 };
 
-export default Categorymanagement;
+export default CategoryManagement;
