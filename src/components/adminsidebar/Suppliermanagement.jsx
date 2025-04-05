@@ -95,11 +95,7 @@ const SupplierManagement = () => {
   const [currentSupplier, setCurrentSupplier] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
-    contact: "",
     email: "",
-    phone: "",
-    address: "",
-    status: "Active"
   });
 
   useEffect(() => {
@@ -122,22 +118,14 @@ const SupplierManagement = () => {
       setCurrentSupplier(supplier);
       setFormData({
         name: supplier.name,
-        contact: supplier.contact,
         email: supplier.email,
-        phone: supplier.phone,
-        address: supplier.address,
-        status: supplier.status
       });
     } else {
       setEditMode(false);
       setCurrentSupplier(null);
       setFormData({
         name: "",
-        contact: "",
         email: "",
-        phone: "",
-        address: "",
-        status: "Active"
       });
     }
     setOpen(true);
@@ -320,34 +308,15 @@ const SupplierManagement = () => {
                         <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
                           {supplier.name}
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <LocationIcon fontSize="small" color="action" />
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {supplier.address}
-                          </Typography>
-                        </Box>
+                        
                       </Box>
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                        {supplier.contact}
+                        {supplier.email}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <PhoneIcon fontSize="small" color="action" />
-                          <Typography variant="caption" color="text.secondary">
-                            {supplier.phone}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <EmailIcon fontSize="small" color="action" />
-                          <Typography variant="caption" color="text.secondary">
-                            {supplier.email}
-                          </Typography>
-                        </Box>
-                      </Box>
                     </Box>
                   </TableCell>
 
@@ -469,50 +438,6 @@ const SupplierManagement = () => {
                   name="email"
                   type="email"
                   value={formData.email}
-                  onChange={handleChange}
-                  className="input-3d"
-                  variant="outlined"
-                  required
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#6366f1',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  margin="normal"
-                  label="Phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="input-3d"
-                  variant="outlined"
-                  required
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#6366f1',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  margin="normal"
-                  label="Address"
-                  name="address"
-                  value={formData.address}
                   onChange={handleChange}
                   className="input-3d"
                   variant="outlined"

@@ -62,7 +62,6 @@ const CustomerManagement = () => {
       setFormData({
         name: customer.name,
         email: customer.email,
-        contact: customer.contact,
       });
     } else {
       setEditMode(false);
@@ -195,7 +194,6 @@ const CustomerManagement = () => {
               <TableRow>
                 <TableCell sx={{ fontWeight: "bold" }}>Customer</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Contact</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Orders</TableCell>
                 <TableCell align="right" sx={{ fontWeight: "bold" }}>
                   Actions
@@ -224,12 +222,7 @@ const CustomerManagement = () => {
                       <Typography variant="body2">{customer.email}</Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <PhoneIcon fontSize="small" sx={{ color: "text.secondary" }} />
-                      <Typography variant="body2">{customer.contact}</Typography>
-                    </Box>
-                  </TableCell>
+                  
                   <TableCell>
                     <Chip
                       label={`${customer.totalOrders || 0} orders`}
@@ -302,15 +295,6 @@ const CustomerManagement = () => {
               name="email"
               type="email"
               value={formData.email}
-              onChange={handleChange}
-              required
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Contact Number"
-              name="contact"
-              value={formData.contact}
               onChange={handleChange}
               required
             />

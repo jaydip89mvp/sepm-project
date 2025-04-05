@@ -34,8 +34,11 @@ import {
   SupervisorAccount as ManagerIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
-  CheckCircle as StatusIcon
+  CheckCircle as StatusIcon,
+  People as CustomerIcon
 } from "@mui/icons-material";
+
+
 import { motion } from "framer-motion";
 import axios from "axios";
 
@@ -50,9 +53,7 @@ const ManagerManagement = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    phone: "",
     department: "",
-    active: true
   });
 
   // Fetch managers
@@ -70,19 +71,13 @@ const ManagerManagement = () => {
             id: 1,
             name: "John Thompson",
             email: "john.t@inventorysys.com",
-            phone: "555-786-1234",
             department: "Electronics",
-            active: true,
-            avatar: "JT"
           },
           {
             id: 2,
             name: "Sarah Miller",
             email: "sarah.m@inventorysys.com",
-            phone: "555-786-2345",
             department: "Home Goods",
-            active: true,
-            avatar: "SM"
           }
         ]);
       } finally {
@@ -136,9 +131,7 @@ const ManagerManagement = () => {
       setFormData({
         name: manager.name,
         email: manager.email,
-        phone: manager.phone,
         department: manager.department,
-        active: manager.active
       });
     } else {
       setEditMode(false);
@@ -146,9 +139,7 @@ const ManagerManagement = () => {
       setFormData({
         name: "",
         email: "",
-        phone: "",
-        department: departments[0],
-        active: true
+        department: departments[0]
       });
     }
     setOpen(true);
@@ -187,7 +178,6 @@ const ManagerManagement = () => {
             ? { 
                 ...mgr, 
                 ...formData, 
-                avatar: currentManager.avatar // Preserve the existing avatar
               } 
             : mgr
         );
@@ -221,7 +211,7 @@ const ManagerManagement = () => {
       if (editMode && currentManager) {
         const updatedManagers = managers.map(mgr => 
           mgr.id === currentManager.id 
-            ? { ...mgr, ...formData, avatar: currentManager.avatar } 
+            ? { ...mgr, ...formData} 
             : mgr
         );
         setManagers(updatedManagers);
@@ -229,7 +219,6 @@ const ManagerManagement = () => {
         const newManager = {
           id: managers.length + 1,
           ...formData,
-          avatar: formData.name.split(' ').map(n => n[0]).join('')
         };
         setManagers([...managers, newManager]);
       }
@@ -369,7 +358,6 @@ const ManagerManagement = () => {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Manager</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Department</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Status</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -396,7 +384,7 @@ const ManagerManagement = () => {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                         }}
                       >
-                        {manager.avatar}
+                        {manager.name.substring(0, 1)}
                       </Avatar>
                       <Box>
                         <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
@@ -409,12 +397,7 @@ const ManagerManagement = () => {
                               {manager.email}
                             </Typography>
                           </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <PhoneIcon fontSize="small" color="action" />
-                            <Typography variant="caption" color="text.secondary">
-                              {manager.phone}
-                            </Typography>
-                          </Box>
+                          
                         </Box>
                       </Box>
                     </Box>
@@ -422,21 +405,7 @@ const ManagerManagement = () => {
                   <TableCell>
                     <Typography variant="body2">{manager.department}</Typography>
                   </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={manager.active ? "Active" : "Inactive"} 
-                      size="small" 
-                      sx={{ 
-                        backgroundColor: manager.active 
-                          ? 'rgba(16, 185, 129, 0.1)' 
-                          : 'rgba(239, 68, 68, 0.1)',
-                        color: manager.active 
-                          ? 'rgb(16, 185, 129)' 
-                          : 'rgb(239, 68, 68)',
-                        fontWeight: 500
-                      }} 
-                    />
-                  </TableCell>
+                  
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                       <Tooltip title="Edit Manager" arrow>
