@@ -1,12 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import {
   Box,
   Container,
-  Grid,
-  Paper,
   Typography,
-  ThemeProvider,
-  createTheme,
+  useTheme,
   Avatar,
   Menu,
   MenuItem,
@@ -22,220 +19,93 @@ import {
   AccountCircle,
   ExitToApp,
   Person,
+  People as EmployeeIcon,
+  Category as CategoryIcon,
+  ShoppingCart as OrderIcon,
+  Payment as PaymentIcon,
+  Assessment as ReportIcon,
+  Logout as LogoutIcon,
+  Person as ProfileIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import EmployeeManagement from './sections/EmployeeManagement';
-import CategoryManagement from './sections/CategoryManagement';
-import OrderManagement from './sections/OrderManagement';
-import PaymentManagement from './sections/PaymentManagement';
-import ReportGeneration from './sections/ReportGeneration';
-import Profile from '../Profile';
+import { useDispatch } from 'react-redux';
+import { userNotExists } from '../../redux/reducer/auth';
+import Dock from './Dock';
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2', // Blue
-      light: '#42a5f5',
-      dark: '#1565c0',
-    },
-    background: {
-      default: '#ffffff',
-      paper: '#f8f9fa',
-    },
-  },
-});
-
-const sections = [
-  { id: 'employees', label: 'Employees', component: EmployeeManagement },
-  { id: 'categories', label: 'Categories', component: CategoryManagement },
-  { id: 'orders', label: 'Orders', component: OrderManagement },
-  { id: 'payments', label: 'Payments', component: PaymentManagement },
-  { id: 'reports', label: 'Reports', component: ReportGeneration },
-];
+// Lazy load components
+const EmployeeManagement = lazy(() => import('./sections/EmployeeManagement'));
+const CategoryManagement = lazy(() => import('./sections/CategoryManagement'));
+const OrderManagement = lazy(() => import('./sections/OrderManagement'));
+const PaymentManagement = lazy(() => import('./sections/PaymentManagement'));
+const ReportGeneration = lazy(() => import('./sections/ReportGeneration'));
+const Profile = lazy(() => import('../Profile'));
 
 const ManagerDashboard = () => {
+  const theme = useTheme();
+  const [selectedItem, setSelectedItem] = useState('employeeManagement');
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [selectedSection, setSelectedSection] = useState('employees');
-  const [anchorEl, setAnchorEl] = useState(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
-  // Handle Profile Menu
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleProfile = () => {
-    setSelectedSection('profile');
-    handleMenuClose();
-  };
 
   const handleLogout = () => {
-    setLogoutDialogOpen(true);
-    handleMenuClose();
+    dispatch(userNotExists());
+    navigate('/login');
   };
 
-  const confirmLogout = async () => {
-    try {
-      setIsLoading(true);
-      // Add your logout API call here if needed
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setLogoutDialogOpen(false);
-      navigate('/login');
-    } catch (error) {
-      setError('Failed to logout. Please try again.');
-      console.error('Logout error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const renderSection = () => {
-    try {
-      if (selectedSection === 'profile') {
-        return <Profile />;
-      }
-
-      const section = sections.find(s => s.id === selectedSection);
-      if (!section) {
+  const renderContent = () => {
+    switch (selectedItem) {
+      case 'employeeManagement':
         return <EmployeeManagement />;
-      }
-
-      const Component = section.component;
-      return <Component />;
-    } catch (error) {
-      console.error('Error rendering section:', error);
-      return (
-        <Typography color="error">
-          An error occurred while loading this section. Please try again.
-        </Typography>
-      );
+      case 'categoryManagement':
+        return <CategoryManagement />;
+      case 'orderManagement':
+        return <OrderManagement />;
+      case 'paymentManagement':
+        return <PaymentManagement />;
+      case 'reportGeneration':
+        return <ReportGeneration />;
+      case 'profile':
+        return <Profile />;
+      default:
+        return <Typography variant="h5">Page Not Found</Typography>;
     }
   };
 
-  if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  const dockItems = [
+    { icon: <EmployeeIcon />, label: 'Employees', onClick: () => setSelectedItem('employeeManagement'), className: selectedItem === 'employeeManagement' ? 'active-dock-item' : '' },
+    { icon: <CategoryIcon />, label: 'Categories', onClick: () => setSelectedItem('categoryManagement'), className: selectedItem === 'categoryManagement' ? 'active-dock-item' : '' },
+    { icon: <OrderIcon />, label: 'Orders', onClick: () => setSelectedItem('orderManagement'), className: selectedItem === 'orderManagement' ? 'active-dock-item' : '' },
+    { icon: <PaymentIcon />, label: 'Payments', onClick: () => setSelectedItem('paymentManagement'), className: selectedItem === 'paymentManagement' ? 'active-dock-item' : '' },
+    { icon: <ReportIcon />, label: 'Reports', onClick: () => setSelectedItem('reportGeneration'), className: selectedItem === 'reportGeneration' ? 'active-dock-item' : '' },
+    { icon: <ProfileIcon />, label: 'Profile', onClick: () => setSelectedItem('profile'), className: selectedItem === 'profile' ? 'active-dock-item' : '' },
+    { icon: <LogoutIcon />, label: 'Logout', onClick: handleLogout, className: '' }
+  ];
 
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ backgroundColor: 'background.default', minHeight: '100vh', py: 4 }}>
-        <Container maxWidth="xl">
-          {/* Header with Profile Menu */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-            <Typography variant="h4" sx={{ color: 'primary.main' }}>
-              Manager Dashboard
-            </Typography>
-            
-            <IconButton
-              size="large"
-              onClick={handleMenuOpen}
-              color="primary"
-              sx={{ ml: 2 }}
-            >
-              <AccountCircle />
-            </IconButton>
-            
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-              PaperProps={{
-                elevation: 0,
-                sx: {
-                  overflow: 'visible',
-                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                  mt: 1.5,
-                },
-              }}
-              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            >
-              <MenuItem onClick={handleProfile}>
-                <Person sx={{ mr: 2 }} /> Profile
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout}>
-                <ExitToApp sx={{ mr: 2 }} /> Logout
-              </MenuItem>
-            </Menu>
-          </Box>
-          
-          {error && (
-            <Typography color="error" sx={{ mb: 2 }}>
-              {error}
-            </Typography>
-          )}
-
-          <Grid container spacing={3}>
-            {/* Navigation Cards */}
-            <Grid container item spacing={2} xs={12}>
-              {sections.map(({ id, label }) => (
-                <Grid item xs={12} sm={6} md={2.4} key={id}>
-                  <Paper
-                    sx={{
-                      p: 2,
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      backgroundColor: selectedSection === id ? 'primary.main' : 'background.paper',
-                      color: selectedSection === id ? 'white' : 'primary.main',
-                      '&:hover': {
-                        backgroundColor: 'primary.light',
-                        color: 'white',
-                      },
-                    }}
-                    onClick={() => setSelectedSection(id)}
-                  >
-                    <Typography variant="h6">{label}</Typography>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
-
-            {/* Content Section */}
-            <Grid item xs={12}>
-              <Paper sx={{ p: 3, mt: 2 }}>
-                {renderSection()}
-              </Paper>
-            </Grid>
-          </Grid>
-        </Container>
+    <Box sx={{ position: 'relative', pb: 10, backgroundColor: 'background.default', overflow: 'hidden', minHeight: '100vh' }}>
+      {/* Header */}
+      <Box sx={{ background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)', py: 3, px: 4, textAlign: 'center', borderRadius: '0 0 16px 16px', boxShadow: 3, mb: 4 }}>
+        <Typography variant="h4" sx={{ color: 'common.white', fontWeight: 600, letterSpacing: 1 }}>
+          Manager Dashboard
+        </Typography>
       </Box>
 
-      {/* Logout Confirmation Dialog */}
-      <Dialog
-        open={logoutDialogOpen}
-        onClose={() => setLogoutDialogOpen(false)}
-      >
-        <DialogTitle>Are you sure you want to logout?</DialogTitle>
-        <DialogActions>
-          <Button 
-            onClick={() => setLogoutDialogOpen(false)}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={confirmLogout}
-            color="primary"
-            variant="contained"
-            disabled={isLoading}
-          >
-            {isLoading ? <CircularProgress size={24} /> : 'Logout'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </ThemeProvider>
+      {/* Main content */}
+      <Container maxWidth="xl" sx={{ mb: 10, p: 4, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ flex: 1, borderRadius: '12px', background: 'linear-gradient(135deg, #f3f4f6, #ffffff)', boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)', transition: 'all 0.3s ease-in-out', display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <Box sx={{ flexGrow: 1, overflowY: "auto", padding: 3 }}>
+            <Suspense fallback={<Typography>Loading...</Typography>}>
+              {renderContent()}
+            </Suspense>
+          </Box>
+        </Box>
+      </Container>
+
+      {/* Dock */}
+      <Dock items={dockItems} />
+    </Box>
   );
 };
 

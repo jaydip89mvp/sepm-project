@@ -21,7 +21,7 @@
     "axios": "^1.8.4",
     "date-fns": "^4.1.0",
     "dock": "^0.1.4",
-    "framer-motion": "^12.6.2",
+    "framer-motion": "^10.18.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",

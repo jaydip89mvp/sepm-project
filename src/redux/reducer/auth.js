@@ -34,9 +34,15 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.error = null;
       authService.logout();
+    },
+    userNotExists: (state) => {
+      state.user = null;
+      state.role = null;
+      state.isAuthenticated = false;
+      state.error = "User does not exist";
     }
   },
 });
 
-export const { setUser, setLoading, setError, logout } = authSlice.actions;
+export const { setUser, setLoading, setError, logout, userNotExists } = authSlice.actions;
 export default authSlice.reducer;
