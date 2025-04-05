@@ -1,14 +1,16 @@
 import { createSlice } from "@reduxjs/toolkit";
-import toast from "react-hot-toast";
+import { authService } from '../../services/authService';
+
+// Load initial state from localStorage
+const storedUser = authService.getStoredUser();
 
 const initialState = {
-  user: null,
-  role: null, // Make sure 'role' has an initial value (can be 'null')
-  token: null, // Same for 'token'
-  isAuthenticated: false,
-  loading: true,
+  user: storedUser ? { email: storedUser.email } : null,
+  role: storedUser ? storedUser.role : null,
+  isAuthenticated: !!storedUser,
+  loading: false,
+  error: null
 };
-
 
 const authSlice = createSlice({
   name: "auth",
@@ -17,18 +19,24 @@ const authSlice = createSlice({
     setUser: (state, action) => {
       state.user = action.payload.user;
       state.role = action.payload.role;
-      state.token = action.payload.token; // Set the token here
       state.isAuthenticated = true;
-      state.loading = false;
+      state.error = null;
     },
-    userNotExists: (state) => {
+    setLoading: (state, action) => {
+      state.loading = action.payload;
+    },
+    setError: (state, action) => {
+      state.error = action.payload;
+    },
+    logout: (state) => {
       state.user = null;
       state.role = null;
       state.isAuthenticated = false;
-      toast.success("Logged Out");
-    },
+      state.error = null;
+      authService.logout();
+    }
   },
 });
 
-export default authSlice;
-export const { setUser, userNotExists } = authSlice.actions;
+export const { setUser, setLoading, setError, logout } = authSlice.actions;
+export default authSlice.reducer;

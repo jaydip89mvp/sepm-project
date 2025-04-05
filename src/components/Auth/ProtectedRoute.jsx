@@ -1,16 +1,22 @@
+import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useSelector } from 'react-redux'; // Import useSelector from react-redux
+import { useSelector } from 'react-redux';
+
 const ProtectedRoute = ({ allowedRoles }) => {
-  const token = useSelector((state) => state.auth.token);
-  const role = 'admin';
+  const { isAuthenticated, role } = useSelector((state) => state.auth);
 
-  console.log('Token:', token); // Debugging output
-  console.log('Role:', role);   // Debugging output
+  // If not authenticated, redirect to login
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
-  // If no token, redirect to login page
-  
+  // If role is required and user's role doesn't match, redirect to unauthorized
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
 
-  // If role is not allowed, redirect to unauthorized page
-  return allowedRoles.includes(role) ? <Outlet /> : <Navigate to="/unauthorized" replace />;
+  // If authenticated and role matches (if required), render the protected content
+  return <Outlet />;
 };
+
 export default ProtectedRoute;
