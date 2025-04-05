@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Paper,
   Typography,
   Table,
   TableBody,
@@ -13,99 +12,245 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  Paper,
+  InputAdornment,
+  Chip
 } from '@mui/material';
-import { Edit, Delete } from '@mui/icons-material';
+import { Edit, Delete, Save, Cancel, Search, CheckCircle, Warning } from '@mui/icons-material';
+import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const ProductsTable = ({ products = [], onDelete, onEdit }) => {
-  // Add search functionality
+const ProductsTable = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Handle empty products array
-  if (!Array.isArray(products)) {
-    return (
-      <Paper sx={{ p: 3, textAlign: 'center' }}>
-        <CircularProgress />
-      </Paper>
-    );
-  }
-  
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [updatedProduct, setUpdatedProduct] = useState({ name: '', price: '' });
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/products');
+      setProducts(response.data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      try {
+        await axios.delete(`http://localhost:8080/products/${id}`);
+        setProducts(products.filter((product) => product.id !== id));
+      } catch (error) {
+        console.error('Error deleting product:', error);
+      }
+    }
+  };
+
+  const handleEdit = (product) => {
+    setEditingProduct(product.id);
+    setUpdatedProduct({ name: product.name, price: product.price });
+  };
+
+  const handleInputChange = (e) => {
+    setUpdatedProduct({ ...updatedProduct, [e.target.name]: e.target.value });
+  };
+
+  const handleSave = async (id) => {
+    try {
+      await axios.put(`http://localhost:8080/products/${id}`, updatedProduct);
+      setProducts(products.map((product) =>
+        product.id === id ? { ...product, ...updatedProduct } : product
+      ));
+      setEditingProduct(null);
+    } catch (error) {
+      console.error('Error updating product:', error);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingProduct(null);
+    setUpdatedProduct({ name: '', price: '' });
+  };
+
   const filteredProducts = products.filter(product =>
     product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product?.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const getStockStatus = (quantity) => {
+    if (quantity <= 0) {
+      return { label: 'Out of Stock', color: 'error', icon: <Warning fontSize="small" /> };
+    } else if (quantity < 5) {
+      return { label: 'Low Stock', color: 'warning', icon: <Warning fontSize="small" /> };
+    } else {
+      return { label: 'In Stock', color: 'success', icon: <CheckCircle fontSize="small" /> };
+    }
+  };
+
   return (
-    <Paper sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Products
-      </Typography>
-      <Box sx={{ mb: 3 }}>
-        <TextField
-          fullWidth
-          label="Search Products"
-          variant="outlined"
-          sx={{ mb: 2 }}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+    <Box className="dashboard-container">
+      <Box className="gradient-header" sx={{ p: 3, borderRadius: 3, mb: 3 }}>
+        <Typography variant="h4" className="dashboard-title section-title">
+          Product Dashboard
+        </Typography>
       </Box>
-      <TableContainer>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Price</TableCell>
-              <TableCell>Quantity</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredProducts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center">
-                  No products found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>{product.id}</TableCell>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell>${product.price?.toFixed(2)}</TableCell>
-                  <TableCell>{product.quantity}</TableCell>
-                  <TableCell>
-                    {onEdit && (
-                      <Tooltip title="Edit">
-                        <IconButton size="small" onClick={() => onEdit(product)}>
-                          <Edit />
-                        </IconButton>
-                      </Tooltip>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Paper className="card-3d content-card" sx={{ p: 3 }}>
+          <TextField
+            fullWidth
+            placeholder="Search by name or category..."
+            variant="outlined"
+            className="input-3d"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              )
+            }}
+            sx={{ mb: 3 }}
+          />
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TableContainer className="table-3d">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ID</TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Price</TableCell>
+                    <TableCell>Quantity</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <AnimatePresence>
+                    {filteredProducts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          <Typography variant="body1" color="text.secondary">
+                            No products found
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredProducts.map((product, index) => {
+                        const stockStatus = getStockStatus(product.quantity);
+                        return (
+                          <TableRow
+                            key={product.id}
+                            component={motion.tr}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
+                            <TableCell>{product.id}</TableCell>
+                            <TableCell>
+                              {editingProduct === product.id ? (
+                                <TextField
+                                  name="name"
+                                  value={updatedProduct.name}
+                                  onChange={handleInputChange}
+                                  fullWidth
+                                  className="input-3d"
+                                  size="small"
+                                />
+                              ) : (
+                                <Typography sx={{ fontWeight: 500 }}>{product.name}</Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>{product.category}</TableCell>
+                            <TableCell>
+                              {editingProduct === product.id ? (
+                                <TextField
+                                  name="price"
+                                  type="number"
+                                  value={updatedProduct.price}
+                                  onChange={handleInputChange}
+                                  fullWidth
+                                  className="input-3d"
+                                  InputProps={{
+                                    startAdornment: <InputAdornment position="start">$</InputAdornment>
+                                  }}
+                                  size="small"
+                                />
+                              ) : (
+                                <Typography sx={{ fontWeight: 500, color: '#059669' }}>
+                                  ${parseFloat(product.price).toFixed(2)}
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>{product.quantity}</TableCell>
+                            <TableCell>
+                              <Chip
+                                icon={stockStatus.icon}
+                                label={stockStatus.label}
+                                color={stockStatus.color}
+                                size="small"
+                                sx={{ fontWeight: 500 }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {editingProduct === product.id ? (
+                                <>
+                                  <Tooltip title="Save">
+                                    <IconButton onClick={() => handleSave(product.id)} sx={{ color: '#059669' }}>
+                                      <Save />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Cancel">
+                                    <IconButton onClick={handleCancel} sx={{ color: '#dc2626' }}>
+                                      <Cancel />
+                                    </IconButton>
+                                  </Tooltip>
+                                </>
+                              ) : (
+                                <>
+                                  <Tooltip title="Edit">
+                                    <IconButton onClick={() => handleEdit(product)} sx={{ color: '#4f46e5' }}>
+                                      <Edit />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Delete">
+                                    <IconButton onClick={() => handleDelete(product.id)} sx={{ color: '#dc2626' }}>
+                                      <Delete />
+                                    </IconButton>
+                                  </Tooltip>
+                                </>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
-                    {onDelete && (
-                      <Tooltip title="Delete">
-                        <IconButton 
-                          size="small" 
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to delete this product?')) {
-                              onDelete(product.id);
-                            }
-                          }}
-                        >
-                          <Delete />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Paper>
+                  </AnimatePresence>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Paper>
+      </motion.div>
+    </Box>
   );
 };
 

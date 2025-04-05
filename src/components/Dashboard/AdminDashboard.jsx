@@ -1,62 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
+import { Box, Typography, Container, useTheme } from '@mui/material';
 import {
-  Box,
-  Typography,
-  Container,
-  Paper,
-  Grid2,
-  ThemeProvider,
-  createTheme,
-} from '@mui/material';
-import {
-  Dashboard,
-  AddBox,
-  People,
-  Inventory,
-  Assignment,
-  Group,
-  AccountCircle,
+  Category as CategoryIcon,
+  LocalShipping as SupplierIcon,
+  SupervisorAccount as ManagerIcon,
+  Assessment as ReportIcon,
+  Logout as LogoutIcon,
+  People as CustomerIcon
 } from '@mui/icons-material';
 
-// Import only the available components
-import Categorymanagement from '../adminsidebar/Categorymanagement';
-import Customermanagement from '../adminsidebar/Customermanagement';
-import Suppliermanagement from '../adminsidebar/Suppliermanagement';
-import Managermanagement from '../adminsidebar/Managermanagement';
-import Report from '../adminsidebar/Report';
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { userNotExists } from '../../redux/reducer/auth'; // ✅ correct action
 
-// Theme for styling
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2', // Blue
-      light: '#42a5f5',
-      dark: '#1565c0',
-    },
-    background: {
-      default: '#ffffff',
-      paper: '#f8f9fa',
-    },
-  },
-});
+
+import Dock from './Dock';
+
+// Lazy load components
+const Categorymanagement = lazy(() => import('../adminsidebar/Categorymanagement'));
+const Suppliermanagement = lazy(() => import('../adminsidebar/Suppliermanagement'));
+const Customermanagement = lazy(() => import('../adminsidebar/Customermanagement'));
+const Managermanagement = lazy(() => import('../adminsidebar/Managermanagement'));
+const Report = lazy(() => import('../adminsidebar/Report'));
 
 const AdminDashboard = () => {
-  const [selectedMenu, setSelectedMenu] = useState('dashboard');
+  const theme = useTheme();
+  const [selectedItem, setSelectedItem] = useState('categoryManagement');
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-  const menuItems = [
-    { id: 'dashboard', text: 'Dashboard', icon: <Dashboard fontSize="large" /> },
-    { id: 'categoryManagement', text: 'Category Management', icon: <AddBox fontSize="large" /> },
-    { id: 'customerManagement', text: 'Customer Management', icon: <People fontSize="large" /> },
-    { id: 'managerManagement', text: 'Manager Management', icon: <Group fontSize="large" /> },
-    { id: 'supplierManagement', text: 'Supplier Management', icon: <Inventory fontSize="large" /> },
-    { id: 'report', text: 'Generate Report', icon: <Assignment fontSize="large" /> },
-    { id: 'profile', text: 'Profile', icon: <AccountCircle fontSize="large" /> },
-  ];
+  const handleLogout = () => {
+    dispatch(userNotExists());
+    navigate('/login');
+  };
+  
 
   const renderContent = () => {
-    switch (selectedMenu) {
-      case 'dashboard':
-        return <DashboardContent />;
+    switch (selectedItem) {
       case 'categoryManagement':
         return <Categorymanagement />;
       case 'customerManagement':
@@ -67,80 +47,43 @@ const AdminDashboard = () => {
         return <Suppliermanagement />;
       case 'report':
         return <Report />;
-      case 'profile':
-        return <Typography variant="h5">Profile Section</Typography>;
       default:
         return <Typography variant="h5">Page Not Found</Typography>;
     }
   };
 
+  const dockItems = [
+    { icon: <CategoryIcon />, label: 'Categories', onClick: () => setSelectedItem('categoryManagement'), className: selectedItem === 'categoryManagement' ? 'active-dock-item' : '' },
+    { icon: <SupplierIcon />, label: 'Suppliers', onClick: () => setSelectedItem('supplierManagement'), className: selectedItem === 'supplierManagement' ? 'active-dock-item' : '' },
+    { icon: <ManagerIcon />, label: 'Managers', onClick: () => setSelectedItem('managerManagement'), className: selectedItem === 'managerManagement' ? 'active-dock-item' : '' },
+    { icon: <CustomerIcon />, label: 'Customers', onClick: () => setSelectedItem('customerManagement'), className: selectedItem === 'customerManagement' ? 'active-dock-item' : '' },
+    { icon: <ReportIcon />, label: 'Reports', onClick: () => setSelectedItem('report'), className: selectedItem === 'report' ? 'active-dock-item' : '' },
+    { icon: <LogoutIcon />, label: 'Logout', onClick: handleLogout, className: '' }
+  ];
+
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: 'background.default' }}>
-        {/* Main Content */}
-        <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-          <Container maxWidth="xl">
-            <Typography variant="h4" sx={{ mb: 4, color: 'primary.main', textAlign: 'center' }}>
-              Admin Dashboard
-            </Typography>
-
-            {/* Navigation Cards */}
-            <Grid2 container spacing={2} justifyContent="center">
-              {menuItems.map((item) => (
-                <Grid2 item xs={12} sm={6} md={3} key={item.id}>
-                  <Paper
-                    sx={{
-                      p: 2,
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minHeight: '120px', // Ensures uniform height
-                      backgroundColor: selectedMenu === item.id ? 'primary.main' : 'background.paper',
-                      color: selectedMenu === item.id ? 'white' : 'primary.main',
-                      '&:hover': {
-                        backgroundColor: 'primary.light',
-                        color: 'white',
-                      },
-                    }}
-                    onClick={() => setSelectedMenu(item.id)}
-                  >
-                    {item.icon}
-                    <Typography variant="h6">{item.text}</Typography>
-                  </Paper>
-                </Grid2>
-              ))}
-            </Grid2>
-
-            {/* Content Section */}
-            <Paper sx={{ p: 3, mt: 2 }}>{renderContent()}</Paper>
-          </Container>
-        </Box>
+    <Box sx={{ position: 'relative', pb: 10, backgroundColor: 'background.default', overflow: 'hidden', minHeight: '100vh' }}>
+      {/* Header */}
+      <Box sx={{ background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)', py: 3, px: 4, textAlign: 'center', borderRadius: '0 0 16px 16px', boxShadow: 3, mb: 4 }}>
+        <Typography variant="h4" sx={{ color: 'common.white', fontWeight: 600, letterSpacing: 1 }}>
+          Admin Dashboard
+        </Typography>
       </Box>
-    </ThemeProvider>
-  );
-};
 
-const DashboardContent = () => {
-  return (
-    <Grid2 container spacing={3} justifyContent="center">
-      {[
-        { title: 'Total Users', value: '1,250' },
-        { title: 'Active Managers', value: '85' },
-        { title: 'Pending Approvals', value: '23' },
-        { title: 'Total Suppliers', value: '120' },
-        { title: 'Total Reports Generated', value: '50' },
-      ].map((item, index) => (
-        <Grid2 item xs={12} sm={6} md={3} key={index}>
-          <Paper sx={{ p: 3, textAlign: 'center', minHeight: '120px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Typography variant="h6">{item.title}</Typography>
-            <Typography variant="h4">{item.value}</Typography>
-          </Paper>
-        </Grid2>
-      ))}
-    </Grid2>
+      {/* Main content */}
+      <Container maxWidth="xl" sx={{ mb: 10, p: 4, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ flex: 1, borderRadius: '12px', background: 'linear-gradient(135deg, #f3f4f6, #ffffff)', boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)', transition: 'all 0.3s ease-in-out', display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <Box sx={{ flexGrow: 1, overflowY: "auto", padding: 3 }}>
+            <Suspense fallback={<Typography>Loading...</Typography>}>
+              {renderContent()}
+            </Suspense>
+          </Box>
+        </Box>
+      </Container>
+
+      {/* Dock */}
+      <Dock items={dockItems} />
+    </Box>
   );
 };
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import {
   Box,
   Button,
@@ -15,141 +16,310 @@ import {
   Paper,
   IconButton,
   Typography,
+  Avatar,
+  Tooltip,
+  Chip,
 } from "@mui/material";
-import { Edit, Delete, Add } from "@mui/icons-material";
-import axios from "axios";
-
-const API_URL = "https://your-api.com/customers";
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+} from "@mui/icons-material";
+import { motion } from "framer-motion";
 
 const CustomerManagement = () => {
   const [customers, setCustomers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [currentCustomer, setCurrentCustomer] = useState(null);
   const [formData, setFormData] = useState({ name: "", email: "", contact: "" });
 
+  // Fetch customers on load
   useEffect(() => {
     fetchCustomers();
   }, []);
 
   const fetchCustomers = async () => {
     try {
-      const response = await axios.get(API_URL);
-      setCustomers(response.data);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
+      const res = await axios.get("/api/customers");
+      const cleanedData = res.data.map((customer) => ({
+        ...customer,
+        name: customer.name.split(",")[0].trim(), // Remove address from name
+      }));
+      setCustomers(cleanedData);
+    } catch (err) {
+      console.error("Error fetching customers:", err);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.name || !formData.email || !formData.contact) return;
-
-    try {
-      if (editMode !== false) {
-        await axios.put(`${API_URL}/${customers[editMode].id}`, formData);
-      } else {
-        await axios.post(API_URL, formData);
-      }
-      fetchCustomers();
-      handleClose();
-    } catch (error) {
-      console.error("Error saving customer:", error);
+  const handleOpenDialog = (customer = null) => {
+    if (customer) {
+      setEditMode(true);
+      setCurrentCustomer(customer);
+      setFormData({
+        name: customer.name,
+        email: customer.email,
+        contact: customer.contact,
+      });
+    } else {
+      setEditMode(false);
+      setCurrentCustomer(null);
+      setFormData({ name: "", email: "", contact: "" });
     }
-  };
-
-  const handleEdit = (index) => {
-    setFormData(customers[index]);
-    setEditMode(index);
     setOpen(true);
-  };
-
-  const handleDelete = async (index) => {
-    try {
-      await axios.delete(`${API_URL}/${customers[index].id}`);
-      fetchCustomers();
-    } catch (error) {
-      console.error("Error deleting customer:", error);
-    }
   };
 
   const handleClose = () => {
     setOpen(false);
-    setFormData({ name: "", email: "", contact: "" });
-    setEditMode(false);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !formData.email.trim() || !formData.contact.trim()) return;
+
+    const cleanedFormData = {
+      ...formData,
+      name: formData.name.split(",")[0].trim(), // Remove address before submitting
+    };
+
+    try {
+      if (editMode && currentCustomer) {
+        await axios.put(`/api/customers/${currentCustomer._id}`, cleanedFormData);
+      } else {
+        await axios.post("/api/customers", cleanedFormData);
+      }
+      fetchCustomers();
+      handleClose();
+    } catch (err) {
+      console.error("Error saving customer:", err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`/api/customers/${id}`);
+      fetchCustomers();
+    } catch (err) {
+      console.error("Error deleting customer:", err);
+    }
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { type: "spring", stiffness: 100, damping: 12 },
+    },
   };
 
   return (
-    <Box sx={{ maxWidth: 800, mx: "auto", mt: 5 }}>
-      <Typography variant="h4" color="primary" textAlign="center">
-        Customer Management
-      </Typography>
+    <Box className="card-3d-soft" sx={{ p: 4, borderRadius: 3, backgroundColor: "white" }}>
+      {/* Header */}
+      <Box
+        className="section-title"
+        sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}
+      >
+        <PersonIcon
+          sx={{
+            fontSize: 32,
+            color: "primary.main",
+            backgroundColor: "primary.light",
+            p: 1,
+            borderRadius: "50%",
+            boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+          }}
+        />
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: "bold",
+            background: "linear-gradient(45deg, #4338ca 30%, #6366f1 90%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          Customer Management
+        </Typography>
+      </Box>
 
-      <Button variant="contained" startIcon={<Add />} sx={{ mt: 3, mb: 2 }} onClick={() => setOpen(true)}>
-        Add Customer
-      </Button>
+      {/* Add Customer Button */}
+      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+          sx={{
+            mb: 3,
+            background: "linear-gradient(45deg, #4338ca 30%, #6366f1 90%)",
+            boxShadow: "0 6px 12px rgba(99, 102, 241, 0.3)",
+            borderRadius: 2,
+            textTransform: "none",
+            fontWeight: "bold",
+            py: 1.2,
+            px: 3,
+          }}
+        >
+          Add New Customer
+        </Button>
+      </motion.div>
 
-      <TableContainer component={Paper} sx={{ mt: 2 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Contact</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {customers.map((customer, index) => (
-              <TableRow key={customer.id}>
-                <TableCell>{customer.name}</TableCell>
-                <TableCell>{customer.email}</TableCell>
-                <TableCell>{customer.contact}</TableCell>
-                <TableCell>
-                  <IconButton color="primary" onClick={() => handleEdit(index)}>
-                    <Edit />
-                  </IconButton>
-                  <IconButton color="error" onClick={() => handleDelete(index)}>
-                    <Delete />
-                  </IconButton>
+      {/* Customer Table */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        style={{ borderRadius: "1rem" }}
+      >
+        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3 }}>
+          <Table>
+            <TableHead sx={{ backgroundColor: "rgba(242, 242, 247, 0.8)" }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: "bold" }}>Customer</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>Contact</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>Orders</TableCell>
+                <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                  Actions
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {customers.map((customer) => (
+                <motion.tr
+                  key={customer._id}
+                  variants={itemVariants}
+                  component={TableRow}
+                  sx={{ "&:hover": { backgroundColor: "rgba(242, 242, 247, 0.5)" } }}
+                >
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Avatar sx={{ backgroundColor: "#eee", color: "#555" }}>
+                        {customer.name[0]}
+                      </Avatar>
+                      <Typography fontWeight="bold">{customer.name}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <EmailIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                      <Typography variant="body2">{customer.email}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <PhoneIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                      <Typography variant="body2">{customer.contact}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={`${customer.totalOrders || 0} orders`}
+                      size="small"
+                      sx={{
+                        backgroundColor: "rgba(99, 102, 241, 0.1)",
+                        color: "primary.main",
+                        fontWeight: 500,
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+                      <Tooltip title="Edit Customer" arrow>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleOpenDialog(customer)}
+                          sx={{ backgroundColor: "rgba(99, 102, 241, 0.1)" }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Customer" arrow>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(customer._id)}
+                          sx={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </motion.tr>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </motion.div>
 
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>{editMode !== false ? "Edit Customer" : "Add New Customer"}</DialogTitle>
+      {/* Add/Edit Dialog */}
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle
+          sx={{
+            fontWeight: "bold",
+            background: "linear-gradient(45deg, #4338ca 30%, #6366f1 90%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          {editMode ? "Edit Customer" : "Add New Customer"}
+        </DialogTitle>
         <DialogContent>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+          <Box component="form" onSubmit={handleSubmit} sx={{ pt: 1 }}>
             <TextField
               fullWidth
               margin="normal"
               label="Full Name"
+              name="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={handleChange}
+              required
             />
             <TextField
               fullWidth
               margin="normal"
               label="Email Address"
+              name="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={handleChange}
+              required
             />
             <TextField
               fullWidth
               margin="normal"
               label="Contact Number"
+              name="contact"
               value={formData.contact}
-              onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+              onChange={handleChange}
+              required
             />
-            <Box textAlign="right" sx={{ mt: 3 }}>
-              <Button onClick={handleClose} sx={{ mr: 2 }}>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 2 }}>
+              <Button variant="outlined" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button variant="contained" color="primary" type="submit">
-                {editMode !== false ? "Update Customer" : "Add Customer"}
+              <Button type="submit" variant="contained">
+                {editMode ? "Update" : "Add"}
               </Button>
             </Box>
           </Box>

@@ -30,25 +30,20 @@ const Profile = () => {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  // Fetch user data
+  // Mock user data (replace with API calls in production)
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await fetch('/api/user');
-        if (response.ok) {
-          const data = await response.json();
-          setUserData(data);
-        } else {
-          setError('Failed to fetch user profile. Please try again.');
-        }
-      } catch (err) {
-        setError('Network error. Please check your connection.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserData();
+    // Simulate API call
+    setTimeout(() => {
+      setUserData({
+        id: 1,
+        name: 'Admin User',
+        email: 'admin@inventorysys.com',
+        contact: '555-123-4567',
+        role: 'System Administrator',
+        avatarUrl: '',
+      });
+      setLoading(false);
+    }, 500);
   }, []);
 
   const handleEdit = () => {
@@ -63,21 +58,12 @@ const Profile = () => {
 
   const handleSave = async () => {
     try {
-      const res = await fetch('/api/user/update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editedData),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
+      // Simulate API call
+      setTimeout(() => {
         setUserData(editedData);
         setEditing(false);
         setSuccess('Profile updated successfully!');
-      } else {
-        setError(data.message || 'Update failed.');
-      }
+      }, 500);
     } catch (error) {
       setError('Network error. Please try again.');
     }
@@ -95,21 +81,46 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box>
-      <Typography 
-        variant="h4" 
-        className="section-title"
-        sx={{ mb: 4, fontWeight: 600, textAlign: 'center' }}
+    <Box className="card-3d-soft" sx={{ p: 4, borderRadius: 3, backgroundColor: 'white' }}>
+      <Box 
+        className="section-title" 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 2, 
+          mb: 4 
+        }}
       >
-        User Profile
-      </Typography>
+        <PersonOutline 
+          sx={{ 
+            fontSize: 32, 
+            color: 'primary.main',
+            backgroundColor: 'primary.light',
+            p: 1,
+            borderRadius: '50%',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+          }} 
+        />
+        <Typography 
+          variant="h4" 
+          className="section-title"
+          sx={{ 
+            fontWeight: 'bold',
+            background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}
+        >
+          Admin Profile
+        </Typography>
+      </Box>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -127,9 +138,13 @@ const Profile = () => {
                     width: 120, 
                     height: 120, 
                     mb: 2,
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    backgroundColor: 'primary.main',
+                    fontSize: '3rem'
                   }}
-                />
+                >
+                  {userData?.name?.charAt(0)}
+                </Avatar>
                 <Typography variant="h5" sx={{ fontWeight: 600 }}>
                   {userData?.name}
                 </Typography>
@@ -189,6 +204,15 @@ const Profile = () => {
                         </InputAdornment>
                       ),
                     }}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#6366f1',
+                          borderWidth: 2
+                        }
+                      }
+                    }}
                   />
                 </Grid>
 
@@ -207,6 +231,15 @@ const Profile = () => {
                           <EmailOutline />
                         </InputAdornment>
                       ),
+                    }}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#6366f1',
+                          borderWidth: 2
+                        }
+                      }
                     }}
                   />
                 </Grid>
@@ -227,6 +260,15 @@ const Profile = () => {
                         </InputAdornment>
                       ),
                     }}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#6366f1',
+                          borderWidth: 2
+                        }
+                      }
+                    }}
                   />
                 </Grid>
 
@@ -246,6 +288,15 @@ const Profile = () => {
                         </InputAdornment>
                       ),
                     }}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#6366f1',
+                          borderWidth: 2
+                        }
+                      }
+                    }}
                   />
                 </Grid>
               </Grid>
@@ -257,13 +308,31 @@ const Profile = () => {
                     color="primary"
                     onClick={handleSave}
                     startIcon={<Save />}
+                    className="btn-3d btn-3d-primary"
+                    sx={{ 
+                      py: 1,
+                      px: 3,
+                      fontSize: '0.9rem', 
+                      borderRadius: '12px',
+                      background: 'linear-gradient(45deg, #4338ca, #4f46e5)',
+                      boxShadow: '0px 4px 10px rgba(79, 70, 229, 0.3)',
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #4f46e5, #6366f1)',
+                        boxShadow: '0px 6px 15px rgba(79, 70, 229, 0.4)',
+                      }
+                    }}
                   >
-                    Save
+                    Save Changes
                   </Button>
                   <Button
                     variant="outlined"
                     color="secondary"
                     onClick={handleCancel}
+                    sx={{ 
+                      borderRadius: '12px',
+                      py: 1,
+                      px: 3,
+                    }}
                   >
                     Cancel
                   </Button>

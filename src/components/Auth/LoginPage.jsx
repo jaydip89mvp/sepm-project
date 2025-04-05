@@ -177,7 +177,7 @@ export const LoginPage = () => {
     try {
       // Dummy role assignment for now
 
-      const role = 'employee';
+      const role = 'admin';
       const user = { username: formData.username };
 
       // Dispatch to Redux

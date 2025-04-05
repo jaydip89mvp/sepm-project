@@ -1,363 +1,187 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Box, Container, Typography, useTheme } from '@mui/material';
 import {
-  Box,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Typography,
-  Container,
-  Paper,
-  Grid,
-  Alert,
-  IconButton,
-  Menu,
-  MenuItem,
-  Divider,
-  Dialog,
-  DialogTitle,
-  DialogActions,
-  Button,
-  CircularProgress,
-} from '@mui/material';
+  FaBoxOpen,
+  FaPlus,
+  FaSync,
+  FaHistory,
+  FaExclamationTriangle,
+  FaCloudUploadAlt,
+  FaUserAlt
+} from 'react-icons/fa';
 import {
-  Dashboard as DashboardIcon,
-  Inventory,
-  AddBox,
-  Refresh,
-  Warning,
-  History,
-  Send,
-  Person,
-  ExitToApp,
-  AccountCircle,
+  Category as CategoryIcon,
+  LocalShipping as SupplierIcon,
+  SupervisorAccount as ManagerIcon,
+  Assessment as ReportIcon,
+  Logout as LogoutIcon,
+  People as CustomerIcon
 } from '@mui/icons-material';
-import Profile from '../Profile'; // Adjust the path if needed
+// Import Dock component
+import Dock from './Dock';
+import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { userNotExists } from '../../redux/reducer/auth'; // ✅ correct action
 
+// Import all Dashboard components
+import ProductsTable from '../ProductsTable';
 import AddProduct from '../AddProduct';
 import UpdateStock from '../UpdateStock';
-import LowStockAlerts from '../LowStockAlerts';
-import StockHistory from '../StockHistory';
 import RequestStock from '../RequestStock';
-import ProductsTable from '../ProductsTable';
-
-// Mock data to simulate backend responses
-const mockProducts = [
-  { productId: '1', name: 'Product 1', mainCategory: 'Electronics', quantity: 50, price: 299.99 },
-  { productId: '2', name: 'Product 2', mainCategory: 'Furniture', quantity: 30, price: 199.99 },
-];
-
-const mockCategories = ['Electronics', 'Furniture', 'Clothing', 'Books'];
+import LowStockAlerts from '../LowStockAlerts';
+import Profile from '../Profile';
+import StockHistory from '../StockHistory';
 
 const EmployeeDashboard = () => {
-  const [selectedMenu, setSelectedMenu] = useState('dashboard');
-  const [products, setProducts] = useState(mockProducts);
-  const [categories, setCategories] = useState(mockCategories);
-  const [notification, setNotification] = useState(null);
+  const theme = useTheme();
+  // State to manage active section
+  const [activeSection, setActiveSection] = useState('inventory');
+const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Simulate API calls with loading state
-  const fetchProducts = async () => {
-    try {
-      setIsLoading(true);
-      // In real implementation, this would be an API call
-      setProducts(mockProducts);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load products');
-      console.error('Error fetching products:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      // In real implementation, this would be an API call
-      setCategories(mockCategories);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      setError('Failed to load categories');
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
-
-  const handleAddProduct = (newProduct) => {
-    setProducts([...products, { ...newProduct, productId: Date.now().toString() }]);
-    setNotification({ type: 'success', message: 'Product added successfully!' });
-  };
-
-  const handleUpdateProduct = (updatedProduct) => {
-    setProducts(products.map(p => 
-      p.productId === updatedProduct.productId ? updatedProduct : p
-    ));
-    setNotification({ type: 'success', message: 'Product updated successfully!' });
-  };
-
-  const handleDeleteProduct = (productId) => {
-    setProducts(products.filter(p => p.productId !== productId));
-    setNotification({ type: 'success', message: 'Product deleted successfully!' });
-  };
-
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
 
   const handleLogout = () => {
-    setLogoutDialogOpen(true);
-    handleMenuClose();
-  };
-
-  const confirmLogout = () => {
-    localStorage.removeItem('token');
+    dispatch(userNotExists());
     navigate('/login');
-    setLogoutDialogOpen(false);
   };
-
-  const menuItems = [
-    { id: 'dashboard', text: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'profile', text: 'Profile', icon: <Person /> },
-    { id: 'products', text: 'View & Manage Products', icon: <Inventory /> },
-    { id: 'addProduct', text: 'Add New Product', icon: <AddBox /> },
-    { id: 'updateStock', text: 'Update Stock', icon: <Refresh /> },
-    { id: 'lowStock', text: 'Low Stock Alerts', icon: <Warning /> },
-    { id: 'stockHistory', text: 'Stock History', icon: <History /> },
-    { id: 'requestStock', text: 'Request Stock Refill', icon: <Send /> },
+  // Define dock items with icons and handlers
+  const dockItems = [
+    { 
+      icon: <FaBoxOpen size={24} />, 
+      label: 'Inventory', 
+      onClick: () => setActiveSection('inventory'),
+      className: activeSection === 'inventory' ? 'active-dock-item' : ''
+    },
+    { 
+      icon: <FaPlus size={22} />, 
+      label: 'Add Product', 
+      onClick: () => setActiveSection('add-product'),
+      className: activeSection === 'add-product' ? 'active-dock-item' : ''
+    },
+    { 
+      icon: <FaSync size={22} />, 
+      label: 'Update Stock', 
+      onClick: () => setActiveSection('update-stock'),
+      className: activeSection === 'update-stock' ? 'active-dock-item' : ''
+    },
+    { 
+      icon: <FaCloudUploadAlt size={24} />, 
+      label: 'Request Stock', 
+      onClick: () => setActiveSection('request-stock'),
+      className: activeSection === 'request-stock' ? 'active-dock-item' : ''
+    },
+    { 
+      icon: <FaExclamationTriangle size={22} />, 
+      label: 'Low Stock', 
+      onClick: () => setActiveSection('low-stock'),
+      className: activeSection === 'low-stock' ? 'active-dock-item' : ''
+    },
+    { 
+      icon: <FaHistory size={22} />, 
+      label: 'History', 
+      onClick: () => setActiveSection('stock-history'),
+      className: activeSection === 'stock-history' ? 'active-dock-item' : ''
+    },
+    { icon: <LogoutIcon />, label: 'Logout', onClick: handleLogout, className: '' }
   ];
 
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-          <CircularProgress />
-        </Box>
-      );
-    }
-
-    if (error) {
-      return (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      );
-    }
-
-    switch (selectedMenu) {
-      case 'profile':
-        return <Profile />;
-      case 'dashboard':
-        return <DashboardContent 
-          products={products}
-          onDelete={handleDeleteProduct}
-          onEdit={handleUpdateProduct}
-        />;
-      case 'products':
-        return <ProductsTable 
-          products={products} 
-          onDelete={handleDeleteProduct} 
-          onEdit={handleUpdateProduct}
-        />;
-      case 'addProduct':
-        return <AddProduct 
-          onAdd={handleAddProduct} 
-          categories={categories}
-          setNotification={setNotification}
-        />;
-      case 'updateStock':
-        return <UpdateStock 
-          products={products} 
-          onUpdate={handleUpdateProduct}
-          setNotification={setNotification}
-        />;
-      case 'lowStock':
-        return <LowStockAlerts products={products} threshold={10} />;
-      case 'stockHistory':
+  // Render active component based on activeSection
+  const renderActiveComponent = () => {
+    switch (activeSection) {
+      case 'inventory':
+        return <ProductsTable />;
+      case 'add-product':
+        return <AddProduct />;
+      case 'update-stock':
+        return <UpdateStock />;
+      case 'request-stock':
+        return <RequestStock />;
+      case 'low-stock':
+        return <LowStockAlerts />;
+      case 'stock-history':
         return <StockHistory />;
-      case 'requestStock':
-        return <RequestStock 
-          products={products}
-          setNotification={setNotification}
-        />;
       default:
-        return <DashboardContent products={products} />;
+        return <ProductsTable />;
     }
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      {/* Sidebar */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: 240,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: 240,
-            boxSizing: 'border-box',
-            backgroundColor: '#f8f9fa',
-            borderRight: '1px solid #e0e0e0',
-          },
-        }}
-      >
-        <Box sx={{ overflow: 'auto', mt: 8 }}>
-          <List>
-            {menuItems.map((item) => (
-              <ListItemButton
-                key={item.id}
-                selected={selectedMenu === item.id}
-                onClick={() => setSelectedMenu(item.id)}
-              >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
-              </ListItemButton>
-            ))}
-          </List>
-        </Box>
-      </Drawer>
+    <Box
+  sx={{
+    position: 'relative',
+    pb: 10,
+    backgroundColor: 'background.default', // Ensures a theme-compatible background
+    overflow:'hidden'
+  }}
+>
+  {/* Header Section with Gradient */}
+  <Box
+    sx={{
+      background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)', // Blue gradient
+      py: 3, // Vertical padding for better spacing
+      px: 4, // Horizontal padding
+      textAlign: 'center', // Centers text
+      borderRadius: '0 0 16px 16px', // Smooth bottom border radius
+      boxShadow: 3, // Adds subtle shadow for depth
+    }}
+  >
+    <Typography
+      variant="h4"
+      sx={{
+        color: 'common.white', // Ensures white text for contrast
+        fontWeight: 600, // Makes the title bold
+        letterSpacing: 1, // Slight spacing for better readability
+      }}
+    >
+      Employee Dashboard
+    </Typography>
+  </Box>
 
-      {/* Main Content */}
-      <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: '#fff' }}>
-        <Container maxWidth="lg" sx={{ mt: 8 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-            <IconButton
-              size="large"
-              onClick={handleMenuOpen}
-              color="primary"
-            >
-              <AccountCircle />
-            </IconButton>
-            
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-              PaperProps={{
-                elevation: 0,
-                sx: {
-                  overflow: 'visible',
-                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                  mt: 1.5,
-                },
-              }}
-              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            >
-              <MenuItem onClick={() => {
-                setSelectedMenu('profile');
-                handleMenuClose();
-              }}>
-                <Person sx={{ mr: 2 }} /> Profile
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout}>
-                <ExitToApp sx={{ mr: 2 }} /> Logout
-              </MenuItem>
-            </Menu>
-          </Box>
-          {notification && (
-            <Alert 
-              severity={notification.type} 
-              onClose={() => setNotification(null)}
-              sx={{ mb: 2 }}
-            >
-              {notification.message}
-            </Alert>
-          )}
-          {renderContent()}
-        </Container>
-      </Box>
-      <Dialog
-        open={logoutDialogOpen}
-        onClose={() => setLogoutDialogOpen(false)}
-      >
-        <DialogTitle>Are you sure you want to logout?</DialogTitle>
-        <DialogActions>
-          <Button onClick={() => setLogoutDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={confirmLogout}
-            color="primary"
-            variant="contained"
-          >
-            Logout
-          </Button>
-        </DialogActions>
-      </Dialog>
+  <Container 
+  maxWidth="xl" 
+  sx={{ 
+    mb: 10, 
+    p: 4, 
+    
+    overflow: "hidden", // Prevents external scrolling
+    display: "flex",
+    flexDirection: "column",
+    transition: 'all 0.3s ease-in-out',
+    '&:hover': {
+      transform: 'scale(1.02)', 
+      boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.2)',
+    }
+  }}
+>
+  <Box 
+    sx={{
+      flex: 1, // Ensures it takes available space
+      borderRadius: '12px',
+      background: 'linear-gradient(135deg, #f3f4f6, #ffffff)',
+      boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)',
+      transition: 'all 0.3s ease-in-out',
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden", // No outer scrolling
+    }}
+  >
+    <Box 
+      sx={{
+        flexGrow: 1,
+        overflowY: "auto", // Only subcomponents scroll
+       
+        padding: 2,
+      }}
+    >
+      {renderActiveComponent()}
     </Box>
-  );
-};
+  </Box>
+</Container>
 
-// Dashboard Content Component
-const DashboardContent = ({ products, onDelete, onEdit }) => {
-  if (!products) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
-  return (
-    <Grid container spacing={3}>
-      {/* Left Side */}
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ 
-          p: 2, 
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          border: '1px solid #e0e0e0' 
-        }}>
-          <Typography variant="h6" gutterBottom color="primary">
-            Products Overview
-          </Typography>
-          <ProductsTable 
-            products={products} 
-            onDelete={onDelete}
-            onEdit={onEdit}
-          />
-        </Paper>
-      </Grid>
-
-      {/* Right Side */}
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ 
-          p: 2, 
-          mb: 2, 
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          border: '1px solid #e0e0e0' 
-        }}>
-          <Typography variant="h6" gutterBottom color="primary">
-            Stock Management
-          </Typography>
-          <LowStockAlerts products={products} />
-        </Paper>
-        <Paper sx={{ 
-          p: 2,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          border: '1px solid #e0e0e0'
-        }}>
-          <Typography variant="h6" gutterBottom color="primary">
-            Recent Activities
-          </Typography>
-          <StockHistory limit={5} />
-        </Paper>
-      </Grid>
-    </Grid>
+      
+      {/* Dock navigation */}
+      <Dock items={dockItems} />
+    </Box>
   );
 };
 

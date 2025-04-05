@@ -1,28 +1,56 @@
-import React, { useState } from 'react';
-import { Paper, Typography, Button, Box, CircularProgress } from '@mui/material';
-import BarChartIcon from '@mui/icons-material/BarChart';
+import React, { useState, useEffect } from 'react';
+import { Paper, Typography, Button, Box, CircularProgress, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import axios from 'axios';
 
 const Report = () => {
-  const [reportType, setReportType] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [months, setMonths] = useState([]);
+  const [years, setYears] = useState([]);
 
-  const generateReport = async (type) => {
+  useEffect(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1; // Months are 0-based
+    const currentYear = today.getFullYear();
+    const last12Months = [];
+
+    for (let i = 0; i < 12; i++) {
+      let date = new Date();
+      date.setMonth(currentMonth - i - 1);
+      last12Months.push({
+        label: date.toLocaleString('default', { month: 'long' }),
+        value: String(date.getMonth() + 1).padStart(2, '0')
+      });
+    }
+    setMonths(last12Months);
+    
+    const yearOptions = [];
+    for (let y = currentYear; y >= currentYear - 10; y--) {
+      yearOptions.push(y);
+    }
+    setYears(yearOptions);
+  }, []);
+
+  const generateReport = async () => {
+    if (!month || !year) {
+      setError('Please select both month and year.');
+      return;
+    }
     setLoading(true);
     setError('');
     setMessage('');
 
     try {
-      const response = await axios.get(`http://localhost:8080/admin/generateReport?type=${type}`, {
+      const response = await axios.get(`http://localhost:8080/admin/generateReport?month=${month}&year=${year}`, {
         headers: { 'Content-Type': 'application/json' },
       });
 
       if (response.status === 200) {
-        setReportType(type);
-        setMessage(`Successfully generated ${type} report`);
+        setMessage(`Successfully generated report for ${months.find(m => m.value === month).label} ${year}`);
       } else {
         setError('Failed to generate report');
       }
@@ -50,26 +78,32 @@ const Report = () => {
         Generate Report
       </Typography>
 
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3 }}>
+      <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <FormControl fullWidth>
+          <InputLabel>Month</InputLabel>
+          <Select value={month} onChange={(e) => setMonth(e.target.value)}>
+            {months.map((m) => (
+              <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl fullWidth>
+          <InputLabel>Year</InputLabel>
+          <Select value={year} onChange={(e) => setYear(e.target.value)}>
+            {years.map((y) => (
+              <MenuItem key={y} value={y}>{y}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <Button
-          variant={reportType === 'Monthly' ? 'contained' : 'outlined'}
+          variant="contained"
           color="primary"
           startIcon={<CalendarMonthIcon />}
-          onClick={() => generateReport('Monthly')}
+          onClick={generateReport}
           sx={{ textTransform: 'none', fontWeight: 'bold', px: 3 }}
           disabled={loading}
         >
-          {loading && reportType === 'Monthly' ? <CircularProgress size={20} /> : 'Monthly'}
-        </Button>
-        <Button
-          variant={reportType === 'Yearly' ? 'contained' : 'outlined'}
-          color="secondary"
-          startIcon={<BarChartIcon />}
-          onClick={() => generateReport('Yearly')}
-          sx={{ textTransform: 'none', fontWeight: 'bold', px: 3 }}
-          disabled={loading}
-        >
-          {loading && reportType === 'Yearly' ? <CircularProgress size={20} /> : 'Yearly'}
+          {loading ? <CircularProgress size={20} /> : 'Generate Report'}
         </Button>
       </Box>
 
