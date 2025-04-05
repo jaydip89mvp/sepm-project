@@ -1,43 +1,48 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import store from './redux/store';
 import './App.css';
 
 import { Home } from './pages/Home.jsx';
-import { LoginPage } from './components/Auth/LoginPage.jsx';
-import EmployeeDashboard from './components/Dashboard/EmployeeDashboard.jsx';
-import ManagerDashboard from './components/Dashboard/ManagerDashboard.jsx';
-import AdminDashboard from './components/Dashboard/AdminDashboard.jsx';
-import Unauthorized from './pages/Unauthorized.jsx';
+import LoginPage from './components/Auth/LoginPage';
+import EmployeeDashboard from './components/Dashboard/EmployeeDashboard';
+import ManagerDashboard from './components/Dashboard/ManagerDashboard';
+import AdminDashboard from './components/Dashboard/AdminDashboard';
+import Unauthorized from './pages/Unauthorized';
 
-import ProtectedRoute from './components/Auth/ProtectedRoute.jsx'; // Corrected import name
+import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 const App = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/unauthorized" element={<Unauthorized />} />
+    <Provider store={store}>
+      <Router>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
-        {/* Protected Routes - Admin */}
-        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        </Route>
+          {/* Protected Routes - Admin */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          </Route>
 
-        {/* Protected Routes - Employee */}
-        <Route element={<ProtectedRoute allowedRoles={['employee']} />}>
-          <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
-        </Route>
+          {/* Protected Routes - Employee */}
+          <Route element={<ProtectedRoute allowedRoles={['EMPLOYEE']} />}>
+            <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+          </Route>
 
-        {/* Protected Routes - Manager */}
-        <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
-          <Route path="/manager/dashboard" element={<ManagerDashboard />} />
-        </Route>
+          {/* Protected Routes - Manager */}
+          <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
+            <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+          </Route>
 
-        {/* Catch-All Route */}
-        <Route path="*" element={<Unauthorized />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Catch-All Route */}
+          <Route path="*" element={<Unauthorized />} />
+        </Routes>
+      </Router>
+    </Provider>
   );
 };
 

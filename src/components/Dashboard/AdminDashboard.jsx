@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Drawer,
@@ -9,10 +9,17 @@ import {
   Typography,
   Container,
   Paper,
-  Grid2,
-  Card,
-  CardContent,
-  CardHeader,
+  Grid,
+  Alert,
+  IconButton,
+  Menu,
+  MenuItem,
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogActions,
+  Button,
+  CircularProgress,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -24,7 +31,11 @@ import {
   AddBox,
   Assignment,
   Group,
+  AccountCircle,
+  ExitToApp,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+
 import AddCategory from '../adminsidebar/AddCategory';
 import AddCustomer from '../adminsidebar/AddCustomer';
 import AddManager from '../adminsidebar/AddManager';
@@ -40,6 +51,29 @@ import UpdateRole from '../adminsidebar/UpdateRole';
 
 const AdminDashboard = () => {
   const [selectedMenu, setSelectedMenu] = useState('dashboard');
+  const [notification, setNotification] = useState(null);
+  const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    setLogoutDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const confirmLogout = () => {
+    localStorage.removeItem('userData');
+    navigate('/login');
+    setLogoutDialogOpen(false);
+  };
 
   const menuItems = [
     { id: 'dashboard', text: 'Dashboard', icon: <DashboardIcon /> },
@@ -123,41 +157,97 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <Container maxWidth="lg" sx={{ mt: 8 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+            <IconButton
+              size="large"
+              onClick={handleMenuOpen}
+              color="primary"
+            >
+              <AccountCircle />
+            </IconButton>
+            
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+              PaperProps={{
+                elevation: 0,
+                sx: {
+                  overflow: 'visible',
+                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                  mt: 1.5,
+                },
+              }}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            >
+              <MenuItem onClick={handleLogout}>
+                <ExitToApp sx={{ mr: 2 }} /> Logout
+              </MenuItem>
+            </Menu>
+          </Box>
+          {notification && (
+            <Alert 
+              severity={notification.type} 
+              onClose={() => setNotification(null)}
+              sx={{ mb: 2 }}
+            >
+              {notification.message}
+            </Alert>
+          )}
           {renderContent()}
         </Container>
       </Box>
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={() => setLogoutDialogOpen(false)}
+      >
+        <DialogTitle>Are you sure you want to logout?</DialogTitle>
+        <DialogActions>
+          <Button onClick={() => setLogoutDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmLogout}
+            color="primary"
+            variant="contained"
+          >
+            Logout
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
 
 const DashboardContent = () => {
   return (
-    <Grid2 container spacing={3}>
-      <Grid2 item xs={12} md={4}>
-        <Card>
-          <CardHeader title="Total Users" />
-          <CardContent>
-            <Typography variant="h4">1,250</Typography>
-          </CardContent>
-        </Card>
-      </Grid2>
-      <Grid2 item xs={12} md={4}>
-        <Card>
-          <CardHeader title="Active Managers" />
-          <CardContent>
-            <Typography variant="h4">85</Typography>
-          </CardContent>
-        </Card>
-      </Grid2>
-      <Grid2 item xs={12} md={4}>
-        <Card>
-          <CardHeader title="Pending Approvals" />
-          <CardContent>
-            <Typography variant="h4">23</Typography>
-          </CardContent>
-        </Card>
-      </Grid2>
-    </Grid2>
+    <Grid container spacing={3}>
+      <Grid item xs={12} md={4}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Total Users
+          </Typography>
+          <Typography variant="h4">1,250</Typography>
+        </Paper>
+      </Grid>
+      <Grid item xs={12} md={4}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Active Managers
+          </Typography>
+          <Typography variant="h4">85</Typography>
+        </Paper>
+      </Grid>
+      <Grid item xs={12} md={4}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Pending Approvals
+          </Typography>
+          <Typography variant="h4">23</Typography>
+        </Paper>
+      </Grid>
+    </Grid>
   );
 };
 
