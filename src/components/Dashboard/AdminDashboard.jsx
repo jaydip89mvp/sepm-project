@@ -11,7 +11,7 @@ import {
 
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { userNotExists } from '../../redux/reducer/auth'; // ✅ correct action
+import { logout } from '../../redux/reducer/auth'; // ✅ correct action
 
 
 import Dock from './Dock';
@@ -30,7 +30,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    dispatch(userNotExists());
+    dispatch(logout());
     navigate('/login');
   };
   
@@ -87,4 +87,4 @@ const AdminDashboard = () => {
   );
 };
 
-// export default AdminDashboard;
+export default AdminDashboard;

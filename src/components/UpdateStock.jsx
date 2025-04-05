@@ -141,9 +141,6 @@ const UpdateStock = () => {
         },
         body: JSON.stringify({
           quantity: updatedQuantity,
-          supplier: supplier,
-          note: note,
-          updateType: updateType,
           quantityChanged: parseInt(quantity)
         }),
       });

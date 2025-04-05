@@ -21,7 +21,7 @@ import {
 import Dock from './Dock';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { userNotExists } from '../../redux/reducer/auth'; // ✅ correct action
+import { logout } from '../../redux/reducer/auth'; // ✅ correct action
 
 // Import all Dashboard components
 import ProductsTable from '../ProductsTable';
@@ -40,7 +40,7 @@ const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    dispatch(userNotExists());
+    dispatch(logout());
     navigate('/login');
   };
   // Define dock items with icons and handlers
