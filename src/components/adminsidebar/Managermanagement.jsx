@@ -622,26 +622,7 @@ const ManagerManagement = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.active}
-                      onChange={handleSwitchChange}
-                      name="active"
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <StatusIcon fontSize="small" color={formData.active ? "primary" : "disabled"} />
-                      <Typography>
-                        {formData.active ? "Active Account" : "Inactive Account"}
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </Grid>
+              
             </Grid>
             
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>

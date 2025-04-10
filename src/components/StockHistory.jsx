@@ -128,10 +128,8 @@ const StockHistory3D = ({ limit }) => {
                 <TableRow>
                   <TableCell className="table-header-cell">Date</TableCell>
                   <TableCell className="table-header-cell">Product</TableCell>
-                  <TableCell className="table-header-cell">Category</TableCell>
+                  <TableCell className="table-header-cell">sub-Category</TableCell>
                   <TableCell className="table-header-cell" align="right">Quantity</TableCell>
-                  <TableCell className="table-header-cell">Supplier</TableCell>
-                  <TableCell className="table-header-cell">Updated By</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -150,13 +148,12 @@ const StockHistory3D = ({ limit }) => {
                       </TableCell>
                       <TableCell className="table-cell"><Typography variant="body2">{record.productName}</Typography></TableCell>
                       <TableCell className="table-cell">
-                        <Chip label={record.category} size="small" sx={{ fontSize: '0.75rem', bgcolor: 'rgba(25, 118, 210, 0.08)', color: 'primary.main' }} />
+                        <Chip label={record.subcategory} size="small" sx={{ fontSize: '0.75rem', bgcolor: 'rgba(25, 118, 210, 0.08)', color: 'primary.main' }} />
                       </TableCell>
                       <TableCell className="table-cell" align="right">
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>{record.quantityOrdered} units</Typography>
                       </TableCell>
-                      <TableCell className="table-cell"><Typography variant="body2">{record.supplierName}</Typography></TableCell>
-                      <TableCell className="table-cell"><Typography variant="body2">{record.updatedBy}</Typography></TableCell>
+                      
                     </TableRow>
                   );
                 })}

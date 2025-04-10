@@ -122,12 +122,10 @@ const RequestStock = () => {
       productId: selectedProduct,
       productName: product.name,
       quantity: parseInt(quantity),
-      supplier,
-      urgency,
-      notes,
       currentStock: product.quantity,
       minStock: product.minQuantity
     };
+    
     
     setRequests([...requests, newRequest]);
     setDraftId(draftId + 1);
@@ -162,9 +160,6 @@ const RequestStock = () => {
           requests: requests.map(request => ({
             productId: request.productId,
             quantity: request.quantity,
-            supplier: request.supplier,
-            urgency: request.urgency,
-            notes: request.notes
           }))
         })
       });
@@ -313,64 +308,7 @@ const RequestStock = () => {
                     />
                   </Grid>
                   
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth className="input-3d">
-                      <InputLabel id="urgency-select-label">Urgency</InputLabel>
-                      <Select
-                        labelId="urgency-select-label"
-                        value={urgency}
-                        onChange={(e) => setUrgency(e.target.value)}
-                        label="Urgency"
-                      >
-                        {urgencyOptions.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
                   
-                  <Grid item xs={12}>
-                    <FormControl fullWidth className="input-3d">
-                      <InputLabel id="supplier-select-label">Supplier</InputLabel>
-                      <Select
-                        labelId="supplier-select-label"
-                        value={supplier}
-                        onChange={(e) => setSupplier(e.target.value)}
-                        label="Supplier"
-                        startAdornment={
-                          <InputAdornment position="start">
-                            <LocalShipping />
-                          </InputAdornment>
-                        }
-                      >
-                        <MenuItem value="">
-                          <em>Select a supplier</em>
-                        </MenuItem>
-                        {supplierOptions.map((option) => (
-                          <MenuItem key={option} value={option}>
-                            {option}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  
-                  <Grid item xs={12}>
-                    <TextField
-                      label="Additional Notes"
-                      fullWidth
-                      multiline
-                      rows={3}
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className="input-3d"
-                      InputProps={{
-                        className: "input-3d"
-                      }}
-                    />
-                  </Grid>
                   
                   <Grid item xs={12} sx={{ mt: 2 }}>
                     <Button
@@ -453,37 +391,9 @@ const RequestStock = () => {
                               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                 {request.productName}
                               </Typography>
-                              <Chip 
-                                size="small" 
-                                label={request.urgency.toUpperCase()}
-                                color={getUrgencyColor(request.urgency)}
-                                sx={{ ml: 1, height: '20px' }}
-                              />
                             </Box>
                           }
-                          secondary={
-                            <>
-                              <Typography variant="body2" component="span" display="block">
-                                Quantity: <b>{request.quantity}</b> units
-                              </Typography>
-                              <Typography variant="body2" component="span" display="block">
-                                Current Stock: <b>{request.currentStock}</b> units (Min: {request.minStock})
-                              </Typography>
-                              <Typography variant="body2" component="span" display="block">
-                                Supplier: {request.supplier}
-                              </Typography>
-                              {request.notes && (
-                                <Typography 
-                                  variant="body2" 
-                                  component="span" 
-                                  display="block"
-                                  sx={{ mt: 1, fontStyle: 'italic', color: 'text.secondary' }}
-                                >
-                                  "{request.notes}"
-                                </Typography>
-                              )}
-                            </>
-                          }
+                          
                         />
                         <ListItemSecondaryAction>
                           <IconButton 

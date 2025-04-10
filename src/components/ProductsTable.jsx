@@ -19,13 +19,14 @@ import {
 import { Edit, Delete, Save, Cancel, Search, CheckCircle, Warning } from '@mui/icons-material';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
+// ...imports remain unchanged
 
 const ProductsTable = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
-  const [updatedProduct, setUpdatedProduct] = useState({ name: '', price: '' });
+  const [updatedProduct, setUpdatedProduct] = useState({ name: '' });
 
   useEffect(() => {
     fetchProducts();
@@ -55,7 +56,7 @@ const ProductsTable = () => {
 
   const handleEdit = (product) => {
     setEditingProduct(product.id);
-    setUpdatedProduct({ name: product.name, price: product.price });
+    setUpdatedProduct({ name: product.name });
   };
 
   const handleInputChange = (e) => {
@@ -76,23 +77,13 @@ const ProductsTable = () => {
 
   const handleCancel = () => {
     setEditingProduct(null);
-    setUpdatedProduct({ name: '', price: '' });
+    setUpdatedProduct({ name: '' });
   };
 
   const filteredProducts = products.filter(product =>
     product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product?.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const getStockStatus = (quantity) => {
-    if (quantity <= 0) {
-      return { label: 'Out of Stock', color: 'error', icon: <Warning fontSize="small" /> };
-    } else if (quantity < 5) {
-      return { label: 'Low Stock', color: 'warning', icon: <Warning fontSize="small" /> };
-    } else {
-      return { label: 'In Stock', color: 'success', icon: <CheckCircle fontSize="small" /> };
-    }
-  };
 
   return (
     <Box className="dashboard-container">
@@ -137,9 +128,7 @@ const ProductsTable = () => {
                     <TableCell>ID</TableCell>
                     <TableCell>Name</TableCell>
                     <TableCell>Category</TableCell>
-                    <TableCell>Price</TableCell>
                     <TableCell>Quantity</TableCell>
-                    <TableCell>Status</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -147,101 +136,69 @@ const ProductsTable = () => {
                   <AnimatePresence>
                     {filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} align="center">
+                        <TableCell colSpan={5} align="center">
                           <Typography variant="body1" color="text.secondary">
                             No products found
                           </Typography>
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredProducts.map((product, index) => {
-                        const stockStatus = getStockStatus(product.quantity);
-                        return (
-                          <TableRow
-                            key={product.id}
-                            component={motion.tr}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                          >
-                            <TableCell>{product.id}</TableCell>
-                            <TableCell>
-                              {editingProduct === product.id ? (
-                                <TextField
-                                  name="name"
-                                  value={updatedProduct.name}
-                                  onChange={handleInputChange}
-                                  fullWidth
-                                  className="input-3d"
-                                  size="small"
-                                />
-                              ) : (
-                                <Typography sx={{ fontWeight: 500 }}>{product.name}</Typography>
-                              )}
-                            </TableCell>
-                            <TableCell>{product.category}</TableCell>
-                            <TableCell>
-                              {editingProduct === product.id ? (
-                                <TextField
-                                  name="price"
-                                  type="number"
-                                  value={updatedProduct.price}
-                                  onChange={handleInputChange}
-                                  fullWidth
-                                  className="input-3d"
-                                  InputProps={{
-                                    startAdornment: <InputAdornment position="start">$</InputAdornment>
-                                  }}
-                                  size="small"
-                                />
-                              ) : (
-                                <Typography sx={{ fontWeight: 500, color: '#059669' }}>
-                                  ${parseFloat(product.price).toFixed(2)}
-                                </Typography>
-                              )}
-                            </TableCell>
-                            <TableCell>{product.quantity}</TableCell>
-                            <TableCell>
-                              <Chip
-                                icon={stockStatus.icon}
-                                label={stockStatus.label}
-                                color={stockStatus.color}
+                      filteredProducts.map((product, index) => (
+                        <TableRow
+                          key={product.id}
+                          component={motion.tr}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <TableCell>{product.id}</TableCell>
+                          <TableCell>
+                            {editingProduct === product.id ? (
+                              <TextField
+                                name="name"
+                                value={updatedProduct.name}
+                                onChange={handleInputChange}
+                                fullWidth
+                                className="input-3d"
                                 size="small"
-                                sx={{ fontWeight: 500 }}
                               />
-                            </TableCell>
-                            <TableCell>
-                              {editingProduct === product.id ? (
-                                <>
-                                  <Tooltip title="Save">
-                                    <IconButton onClick={() => handleSave(product.id)} sx={{ color: '#059669' }}>
-                                      <Save />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Cancel">
-                                    <IconButton onClick={handleCancel} sx={{ color: '#dc2626' }}>
-                                      <Cancel />
-                                    </IconButton>
-                                  </Tooltip>
-                                </>
-                              ) : (
-                                <>
-                                  <Tooltip title="Edit">
-                                    <IconButton onClick={() => handleEdit(product)} sx={{ color: '#4f46e5' }}>
-                                      <Edit />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Delete">
-                                    <IconButton onClick={() => handleDelete(product.id)} sx={{ color: '#dc2626' }}>
-                                      <Delete />
-                                    </IconButton>
-                                  </Tooltip>
-                                </>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
+                            ) : (
+                              <Typography sx={{ fontWeight: 500 }}>{product.name}</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>{product.category}</TableCell>
+                          <TableCell>{product.quantity}</TableCell>
+                          <TableCell>
+                            {editingProduct === product.id ? (
+                              <>
+                                <Tooltip title="Save">
+                                  <IconButton onClick={() => handleSave(product.id)} sx={{ color: '#059669' }}>
+                                    <Save />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Cancel">
+                                  <IconButton onClick={handleCancel} sx={{ color: '#dc2626' }}>
+                                    <Cancel />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            ) : (
+                              <>
+                                <Tooltip title="Edit">
+                                  <IconButton onClick={() => handleEdit(product)} sx={{ color: '#4f46e5' }}>
+                                    <Edit />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete">
+                                  <IconButton onClick={() => handleDelete(product.id)} sx={{ color: '#dc2626' }}>
+                                    <Delete />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
                     )}
                   </AnimatePresence>
                 </TableBody>
