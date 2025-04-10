@@ -25,7 +25,9 @@ import {
   InputLabel,
   Switch,
   FormControlLabel,
-  CircularProgress
+  CircularProgress,
+  Alert,
+  Snackbar
 } from "@mui/material";
 import { 
   Add as AddIcon, 
@@ -38,48 +40,71 @@ import {
   People as CustomerIcon
 } from "@mui/icons-material";
 
-
 import { motion } from "framer-motion";
 import axios from "axios";
+
+const API_BASE_URL = 'http://localhost:8080/api'; // Update this to match your backend URL
+
+axios.defaults.baseURL = API_BASE_URL;
 
 const ManagerManagement = () => {
   const [managers, setManagers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
+  const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentManager, setCurrentManager] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     department: "",
+    phone: "",
+    active: true
   });
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   // Fetch managers
   useEffect(() => {
     const fetchManagers = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('/api/managers');
+        setError(null);
+        const response = await axios.get('/managers');
         setManagers(response.data);
       } catch (error) {
         console.error('Error fetching managers:', error);
-        // Fallback data if API fails
-        setManagers([
-          {
-            id: 1,
-            name: "John Thompson",
-            email: "john.t@inventorysys.com",
-            department: "Electronics",
-          },
-          {
-            id: 2,
-            name: "Sarah Miller",
-            email: "sarah.m@inventorysys.com",
-            department: "Home Goods",
-          }
-        ]);
+        setError('Failed to load managers. Please try again later.');
+        // Fallback data if API fails in development
+        if (process.env.NODE_ENV === 'development') {
+          setManagers([
+            {
+              id: 1,
+              name: "John Thompson",
+              email: "john.t@inventorysys.com",
+              department: "Electronics",
+              phone: "555-0123",
+              active: true
+            },
+            {
+              id: 2,
+              name: "Sarah Miller",
+              email: "sarah.m@inventorysys.com",
+              department: "Home Goods",
+              phone: "555-0124",
+              active: true
+            }
+          ]);
+        }
       } finally {
         setLoading(false);
       }
@@ -93,7 +118,8 @@ const ManagerManagement = () => {
     const fetchDepartments = async () => {
       try {
         setLoadingDepartments(true);
-        const response = await axios.get('/api/departments');
+        setError(null);
+        const response = await axios.get('/departments');
         setDepartments(response.data);
         
         // Update form default department if not already set
@@ -105,16 +131,18 @@ const ManagerManagement = () => {
         }
       } catch (error) {
         console.error('Error fetching departments:', error);
-        // Fallback data if API fails
-        const fallbackDepts = ["Electronics", "Home Goods", "Clothing", "Food & Beverage", "Sporting Goods", "Beauty", "Toys"];
-        setDepartments(fallbackDepts);
-        
-        // Update form default department if not already set
-        if (!formData.department) {
-          setFormData(prev => ({
-            ...prev,
-            department: fallbackDepts[0]
-          }));
+        setError('Failed to load departments. Please try again later.');
+        // Fallback data if API fails in development
+        if (process.env.NODE_ENV === 'development') {
+          const fallbackDepts = ["Electronics", "Home Goods", "Clothing", "Food & Beverage", "Sporting Goods"];
+          setDepartments(fallbackDepts);
+          
+          if (!formData.department) {
+            setFormData(prev => ({
+              ...prev,
+              department: fallbackDepts[0]
+            }));
+          }
         }
       } finally {
         setLoadingDepartments(false);
@@ -125,6 +153,7 @@ const ManagerManagement = () => {
   }, []);
 
   const handleOpenDialog = (manager = null) => {
+    setError(null);
     if (manager) {
       setEditMode(true);
       setCurrentManager(manager);
@@ -132,6 +161,8 @@ const ManagerManagement = () => {
         name: manager.name,
         email: manager.email,
         department: manager.department,
+        phone: manager.phone || '',
+        active: manager.active
       });
     } else {
       setEditMode(false);
@@ -139,7 +170,9 @@ const ManagerManagement = () => {
       setFormData({
         name: "",
         email: "",
-        department: departments[0]
+        department: departments[0] || '',
+        phone: "",
+        active: true
       });
     }
     setOpen(true);
@@ -147,6 +180,7 @@ const ManagerManagement = () => {
 
   const handleClose = () => {
     setOpen(false);
+    setError(null);
   };
 
   const handleChange = (e) => {
@@ -164,78 +198,70 @@ const ManagerManagement = () => {
     });
   };
 
+  const validateForm = () => {
+    if (!formData.name.trim()) return 'Name is required';
+    if (!formData.email.trim()) return 'Email is required';
+    if (!formData.department) return 'Department is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
     try {
       if (editMode && currentManager) {
-        // Update existing manager via API
-        await axios.put(`/api/managers/${currentManager.id}`, formData);
+        // Update existing manager
+        const response = await axios.put(`/managers/${currentManager.id}`, formData);
         
-        // Update UI
+        if (!response.data) throw new Error('No data received from server');
+        
         const updatedManagers = managers.map(mgr => 
-          mgr.id === currentManager.id 
-            ? { 
-                ...mgr, 
-                ...formData, 
-              } 
-            : mgr
+          mgr.id === currentManager.id ? response.data : mgr
         );
         setManagers(updatedManagers);
+        showSnackbar('Manager updated successfully');
       } else {
-        // Add new manager via API
+        // Add new manager
         const avatar = formData.name.split(' ').map(n => n[0]).join('');
         const newManagerData = {
           ...formData,
           avatar
         };
         
-        const response = await axios.post('/api/managers', newManagerData);
-        const newManager = response.data;
+        const response = await axios.post('/managers', newManagerData);
         
-        // If API fails to return data, create a local version
-        if (!newManager) {
-          const localNewManager = {
-            id: Date.now(), // Use timestamp as temp ID
-            ...newManagerData
-          };
-          setManagers([...managers, localNewManager]);
-        } else {
-          setManagers([...managers, newManager]);
-        }
+        if (!response.data) throw new Error('No data received from server');
+        
+        setManagers([...managers, response.data]);
+        showSnackbar('Manager added successfully');
       }
       handleClose();
     } catch (error) {
       console.error('Error saving manager:', error);
-      // Fallback for demo purposes
-      if (editMode && currentManager) {
-        const updatedManagers = managers.map(mgr => 
-          mgr.id === currentManager.id 
-            ? { ...mgr, ...formData} 
-            : mgr
-        );
-        setManagers(updatedManagers);
-      } else {
-        const newManager = {
-          id: managers.length + 1,
-          ...formData,
-        };
-        setManagers([...managers, newManager]);
-      }
-      handleClose();
+      setError(error.response?.data?.message || 'Failed to save manager. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
     try {
-      // Delete manager via API
-      await axios.delete(`/api/managers/${id}`);
-      // Update UI
+      await axios.delete(`/managers/${id}`);
       setManagers(managers.filter(mgr => mgr.id !== id));
+      showSnackbar('Manager deleted successfully');
     } catch (error) {
       console.error('Error deleting manager:', error);
-      // Fallback for demo purposes
-      setManagers(managers.filter(mgr => mgr.id !== id));
+      showSnackbar('Failed to delete manager', 'error');
     }
   };
 
@@ -263,7 +289,13 @@ const ManagerManagement = () => {
     }
   };
 
-
+  if (loading && managers.length === 0) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box className="card-3d-soft" sx={{ p: 4, borderRadius: 3, backgroundColor: 'white' }}>
@@ -299,6 +331,12 @@ const ManagerManagement = () => {
           Manager Management
         </Typography>
       </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       <motion.div
         className="glow-effect"
@@ -642,6 +680,17 @@ const ManagerManagement = () => {
           </Box>
         </DialogContent>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

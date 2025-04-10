@@ -1,140 +1,373 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import managerService from '../../../services/managerService';
 import {
-  Box,
-  Tabs,
-  Tab,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-  MenuItem,
+    Box,
+    Button,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Typography,
+    Tabs,
+    Tab,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    IconButton,
+    Alert,
+    Snackbar,
+    Grid
 } from '@mui/material';
-import { Add } from '@mui/icons-material';
+import { Add, Edit } from '@mui/icons-material';
 
 const OrderManagement = () => {
-  const [tabValue, setTabValue] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [supplierOrders, setSupplierOrders] = useState([
-    { id: '1', status: 'Pending' },
-    { id: '2', status: 'Delivered' }
-  ]);
-  const [customerOrders, setCustomerOrders] = useState([
-    { id: '1', customer: 'John Doe', status: 'Processing' },
-    { id: '2', customer: 'Jane Smith', status: 'Delivered' }
-  ]);
-  const [orderForm, setOrderForm] = useState({
-    id: '',
-    status: '',
-    items: [],
-  });
+    const [tabValue, setTabValue] = useState(0);
+    const [openDialog, setOpenDialog] = useState(false);
+    const [orderType, setOrderType] = useState('');
+    const [supplierOrders, setSupplierOrders] = useState([]);
+    const [customerOrders, setCustomerOrders] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [formData, setFormData] = useState({
+        customerId: '',
+        supplierId: '',
+        products: [{ productId: '', quantity: 0, price: 0 }],
+        status: 'PENDING',
+        totalAmount: 0
+    });
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success'
+    });
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
+    useEffect(() => {
+        fetchOrders();
+    }, []);
 
-  const handleUpdateStatus = (orderId, status, isSupplier) => {
-    if (isSupplier) {
-      setSupplierOrders(supplierOrders.map(order => 
-        order.id === orderId ? { ...order, status } : order
-      ));
-    } else {
-      setCustomerOrders(customerOrders.map(order => 
-        order.id === orderId ? { ...order, status } : order
-      ));
-    }
-  };
+    const fetchOrders = async () => {
+        setIsLoading(true);
+        try {
+            const [supplierResponse, customerResponse] = await Promise.all([
+                managerService.getSupplierOrders(),
+                managerService.getCustomerOrders()
+            ]);
+            setSupplierOrders(supplierResponse.data);
+            setCustomerOrders(customerResponse.data);
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error fetching orders', 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  return (
-    <Box>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tabValue} onChange={handleTabChange}>
-          <Tab label="Supplier Orders" />
-          <Tab label="Customer Orders" />
-        </Tabs>
-      </Box>
+    const handleTabChange = (event, newValue) => {
+        setTabValue(newValue);
+    };
 
-      {tabValue === 0 ? (
-        <Box>
-          <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
-            Supplier Orders
-          </Typography>
-          <TableContainer component={Paper}>
+    const handleOpenDialog = (type, order = null) => {
+        setOrderType(type);
+        if (order) {
+            setSelectedOrder(order);
+            setFormData(order);
+        } else {
+            setSelectedOrder(null);
+            setFormData({
+                customerId: '',
+                supplierId: '',
+                products: [{ productId: '', quantity: 0, price: 0 }],
+                status: 'PENDING',
+                totalAmount: 0
+            });
+        }
+        setOpenDialog(true);
+    };
+
+    const handleCloseDialog = () => {
+        setOpenDialog(false);
+        setSelectedOrder(null);
+        setFormData({
+            customerId: '',
+            supplierId: '',
+            products: [{ productId: '', quantity: 0, price: 0 }],
+            status: 'PENDING',
+            totalAmount: 0
+        });
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleProductChange = (index, field, value) => {
+        const updatedProducts = [...formData.products];
+        updatedProducts[index] = {
+            ...updatedProducts[index],
+            [field]: value
+        };
+        
+        // Calculate total amount
+        const totalAmount = updatedProducts.reduce((sum, product) => 
+            sum + (product.quantity * product.price), 0
+        );
+
+        setFormData(prev => ({
+            ...prev,
+            products: updatedProducts,
+            totalAmount
+        }));
+    };
+
+    const addProductField = () => {
+        setFormData(prev => ({
+            ...prev,
+            products: [...prev.products, { productId: '', quantity: 0, price: 0 }]
+        }));
+    };
+
+    const removeProductField = (index) => {
+        if (formData.products.length > 1) {
+            const updatedProducts = formData.products.filter((_, i) => i !== index);
+            setFormData(prev => ({
+                ...prev,
+                products: updatedProducts
+            }));
+        }
+    };
+
+    const handleSubmit = async () => {
+        setIsLoading(true);
+        try {
+            if (selectedOrder) {
+                if (orderType === 'supplier') {
+                    await managerService.updateSupplierOrderStatus(selectedOrder.id, formData.status);
+                } else {
+                    await managerService.updateCustomerOrderStatus(selectedOrder.id, formData.status);
+                }
+                showSnackbar('Order status updated successfully', 'success');
+            } else {
+                if (orderType === 'supplier') {
+                    await managerService.addSupplierOrder(formData);
+                } else {
+                    await managerService.addCustomerOrder(formData);
+                }
+                showSnackbar('Order created successfully', 'success');
+            }
+            handleCloseDialog();
+            fetchOrders();
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error processing order', 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const showSnackbar = (message, severity) => {
+        setSnackbar({
+            open: true,
+            message,
+            severity
+        });
+    };
+
+    const renderOrderTable = (orders, type) => (
+        <TableContainer component={Paper}>
             <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Order ID</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {supplierOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>{order.id}</TableCell>
-                    <TableCell>{order.status}</TableCell>
-                    <TableCell>
-                      <Button 
-                        onClick={() => handleUpdateStatus(order.id, 'Delivered', true)}
-                        variant="outlined"
-                        size="small"
-                      >
-                        Update Status
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+                <TableHead>
+                    <TableRow>
+                        <TableCell>Order ID</TableCell>
+                        <TableCell>{type === 'supplier' ? 'Supplier ID' : 'Customer ID'}</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Total Amount</TableCell>
+                        <TableCell>Actions</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {orders.map((order) => (
+                        <TableRow key={order.id}>
+                            <TableCell>{order.id}</TableCell>
+                            <TableCell>{type === 'supplier' ? order.supplierId : order.customerId}</TableCell>
+                            <TableCell>{order.status}</TableCell>
+                            <TableCell>${order.totalAmount.toFixed(2)}</TableCell>
+                            <TableCell>
+                                <IconButton 
+                                    onClick={() => handleOpenDialog(type, order)}
+                                    disabled={isLoading}
+                                >
+                                    <Edit />
+                                </IconButton>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
             </Table>
-          </TableContainer>
-        </Box>
-      ) : (
+        </TableContainer>
+    );
+
+    return (
         <Box>
-          <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
-            Customer Orders
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Order ID</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {customerOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>{order.id}</TableCell>
-                    <TableCell>{order.customer}</TableCell>
-                    <TableCell>{order.status}</TableCell>
-                    <TableCell>
-                      <Button 
-                        onClick={() => handleUpdateStatus(order.id, 'Delivered', false)}
-                        variant="outlined"
-                        size="small"
-                      >
-                        Update Status
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+                <Typography variant="h5" color="primary">Order Management</Typography>
+            </Box>
+
+            <Paper sx={{ width: '100%', mb: 2 }}>
+                <Tabs
+                    value={tabValue}
+                    onChange={handleTabChange}
+                    indicatorColor="primary"
+                    textColor="primary"
+                    centered
+                >
+                    <Tab label="Supplier Orders" />
+                    <Tab label="Customer Orders" />
+                </Tabs>
+
+                <Box sx={{ p: 2 }}>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<Add />}
+                        onClick={() => handleOpenDialog(tabValue === 0 ? 'supplier' : 'customer')}
+                        sx={{ mb: 2 }}
+                    >
+                        New {tabValue === 0 ? 'Supplier' : 'Customer'} Order
+                    </Button>
+
+                    {tabValue === 0 ? 
+                        renderOrderTable(supplierOrders, 'supplier') : 
+                        renderOrderTable(customerOrders, 'customer')}
+                </Box>
+            </Paper>
+
+            <Dialog 
+                open={openDialog} 
+                onClose={handleCloseDialog}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    {selectedOrder ? 'Update Order Status' : `New ${orderType === 'supplier' ? 'Supplier' : 'Customer'} Order`}
+                </DialogTitle>
+                <DialogContent>
+                    {!selectedOrder ? (
+                        <>
+                            <TextField
+                                margin="normal"
+                                name={orderType === 'supplier' ? 'supplierId' : 'customerId'}
+                                label={orderType === 'supplier' ? 'Supplier ID' : 'Customer ID'}
+                                fullWidth
+                                value={orderType === 'supplier' ? formData.supplierId : formData.customerId}
+                                onChange={handleInputChange}
+                                required
+                            />
+                            {formData.products.map((product, index) => (
+                                <Grid container spacing={2} key={index} sx={{ mt: 1 }}>
+                                    <Grid item xs={12} sm={4}>
+                                        <TextField
+                                            fullWidth
+                                            label="Product ID"
+                                            value={product.productId}
+                                            onChange={(e) => handleProductChange(index, 'productId', e.target.value)}
+                                            required
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={3}>
+                                        <TextField
+                                            fullWidth
+                                            label="Quantity"
+                                            type="number"
+                                            value={product.quantity}
+                                            onChange={(e) => handleProductChange(index, 'quantity', parseInt(e.target.value))}
+                                            required
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={3}>
+                                        <TextField
+                                            fullWidth
+                                            label="Price"
+                                            type="number"
+                                            value={product.price}
+                                            onChange={(e) => handleProductChange(index, 'price', parseFloat(e.target.value))}
+                                            required
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={2}>
+                                        <Button 
+                                            onClick={() => removeProductField(index)}
+                                            disabled={formData.products.length === 1}
+                                            fullWidth
+                                            variant="outlined"
+                                            color="error"
+                                        >
+                                            Remove
+                                        </Button>
+                                    </Grid>
+                                </Grid>
+                            ))}
+                            <Button
+                                onClick={addProductField}
+                                variant="outlined"
+                                sx={{ mt: 2 }}
+                            >
+                                Add Product
+                            </Button>
+                            <Typography variant="h6" sx={{ mt: 2 }}>
+                                Total Amount: ${formData.totalAmount.toFixed(2)}
+                            </Typography>
+                        </>
+                    ) : (
+                        <FormControl fullWidth margin="normal">
+                            <InputLabel>Status</InputLabel>
+                            <Select
+                                value={formData.status}
+                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                label="Status"
+                            >
+                                <MenuItem value="PENDING">Pending</MenuItem>
+                                <MenuItem value="PROCESSING">Processing</MenuItem>
+                                <MenuItem value="COMPLETED">Completed</MenuItem>
+                                <MenuItem value="CANCELLED">Cancelled</MenuItem>
+                            </Select>
+                        </FormControl>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseDialog} disabled={isLoading}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSubmit} color="primary" disabled={isLoading}>
+                        {selectedOrder ? 'Update Status' : 'Create Order'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+            >
+                <Alert 
+                    onClose={() => setSnackbar({ ...snackbar, open: false })} 
+                    severity={snackbar.severity}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
-      )}
-    </Box>
-  );
+    );
 };
 
 export default OrderManagement;

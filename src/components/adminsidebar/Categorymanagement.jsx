@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import {
   Box,
   Button,
@@ -16,24 +15,66 @@ import {
   Paper,
   Typography,
   Chip,
-  Avatar
+  Avatar,
+  Snackbar,
+  Alert
 } from "@mui/material";
 import {
   Add as AddIcon,
   Category as CategoryIcon
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
+import adminService from "../../services/adminService";
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "" });
+  const [isLoading, setIsLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success"
+  });
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/categories")
-      .then((res) => setCategories(res.data))
-      .catch((err) => console.error("Failed to fetch categories:", err));
+    console.log('Component mounted, fetching categories...');
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    setIsLoading(true);
+    try {
+      console.log('Fetching categories...');
+      const response = await adminService.getManagerRoles();
+      console.log('Raw categories data:', response.data);
+      
+      // Transform the categories
+      const transformedCategories = (response.data || []).map(role => ({
+        ...role,
+        id: role.id || Math.random().toString(36).substr(2, 9),
+        name: role.name.replace('MANAGER_', ''),
+        displayName: role.name.replace('MANAGER_', ''),
+        description: role.description || 'Manager Category',
+        color: role.color || '#' + Math.floor(Math.random()*16777215).toString(16)
+      }));
+      
+      console.log('Transformed categories:', transformedCategories);
+      setCategories(transformedCategories);
+
+      // Show appropriate message
+      if (transformedCategories.length === 0) {
+        showSnackbar("No categories found. Add some categories to get started.", "info");
+      }
+    } catch (error) {
+      console.error('Error in fetchCategories:', error);
+      const errorData = adminService.handleError(error);
+      showSnackbar(errorData.message, "error");
+      setCategories([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleOpenDialog = () => {
     setFormData({ name: "" });
@@ -45,18 +86,47 @@ const CategoryManagement = () => {
     setFormData({ name: "" });
   };
 
+  const showSnackbar = (message, severity) => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim()) {
+      showSnackbar("Category name is required", "error");
+      return;
+    }
 
+    setIsLoading(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/categories", {
-        name: formData.name
+      const categoryName = formData.name.trim().toUpperCase();
+      console.log('Adding category:', categoryName);
+      
+      const response = await adminService.addCategory({
+        name: categoryName,
+        description: "Manager Category"
       });
-      setCategories([...categories, res.data]);
-      handleClose();
-    } catch (err) {
-      console.error("Error adding category:", err);
+      
+      if (response.status === 200) {
+        showSnackbar("Category added successfully", "success");
+        setFormData({ name: "" }); // Clear form
+        handleClose();
+        
+        // Fetch updated categories
+        await fetchCategories();
+      } else {
+        showSnackbar(response.data || "Failed to add category", "error");
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      const errorData = adminService.handleError(error);
+      showSnackbar(errorData.message, "error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -115,6 +185,7 @@ const CategoryManagement = () => {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleOpenDialog}
+          disabled={isLoading}
           sx={{
             mb: 3,
             background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
@@ -141,13 +212,13 @@ const CategoryManagement = () => {
             <TableHead sx={{ backgroundColor: 'rgba(242, 242, 247, 0.8)' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Category Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Subcategories</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Description</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {categories.map((category) => (
                 <motion.tr
-                  key={category._id}
+                  key={category.name}
                   variants={itemVariants}
                   component={TableRow}
                   sx={{
@@ -168,17 +239,17 @@ const CategoryManagement = () => {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                         }}
                       >
-                        {category.name?.substring(0, 1)}
+                        {category.displayName?.charAt(0)}
                       </Avatar>
                       <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                        {category.name}
+                        {category.displayName}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Chip
                       icon={<CategoryIcon fontSize="small" />}
-                      label={`${category.subCategoryCount || 0} subcategories`}
+                      label={category.description || "Manager Category"}
                       size="small"
                       sx={{
                         backgroundColor: 'rgba(99, 102, 241, 0.1)',
@@ -230,6 +301,7 @@ const CategoryManagement = () => {
               value={formData.name}
               onChange={(e) => setFormData({ name: e.target.value })}
               variant="outlined"
+              disabled={isLoading}
               sx={{
                 mb: 3,
                 mt: 2,
@@ -246,6 +318,7 @@ const CategoryManagement = () => {
               <Button
                 onClick={handleClose}
                 variant="outlined"
+                disabled={isLoading}
                 sx={{
                   borderRadius: 2,
                   textTransform: 'none',
@@ -263,6 +336,7 @@ const CategoryManagement = () => {
               <Button
                 variant="contained"
                 type="submit"
+                disabled={isLoading}
                 sx={{
                   borderRadius: 2,
                   textTransform: 'none',
@@ -277,6 +351,19 @@ const CategoryManagement = () => {
           </Box>
         </DialogContent>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

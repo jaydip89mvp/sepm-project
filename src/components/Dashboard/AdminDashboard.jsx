@@ -1,5 +1,5 @@
 import React, { useState, lazy, Suspense } from 'react';
-import { Box, Typography, Container, useTheme } from '@mui/material';
+import { Box, Typography, Container, useTheme, Dialog, DialogTitle, DialogActions, Button, CircularProgress } from '@mui/material';
 import {
   Category as CategoryIcon,
   LocalShipping as SupplierIcon,
@@ -11,9 +11,8 @@ import {
 
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { userNotExists } from '../../redux/reducer/auth'; // ✅ correct action
-
-
+import { logout } from '../../redux/reducer/auth';
+import { authService } from '../../services/authService';
 import Dock from './Dock';
 
 // Lazy load components
@@ -28,12 +27,23 @@ const AdminDashboard = () => {
   const [selectedItem, setSelectedItem] = useState('categoryManagement');
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleLogout = () => {
-    dispatch(userNotExists());
-    navigate('/login');
+  const handleLogout = async () => {
+    setIsLoading(true);
+    try {
+      await authService.logout();
+      dispatch(logout());
+      navigate('/login');
+    } catch (err) {
+      setError('Failed to logout. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setLogoutDialogOpen(false);
+    }
   };
-  
 
   const renderContent = () => {
     switch (selectedItem) {
@@ -58,7 +68,7 @@ const AdminDashboard = () => {
     { icon: <ManagerIcon />, label: 'Managers', onClick: () => setSelectedItem('managerManagement'), className: selectedItem === 'managerManagement' ? 'active-dock-item' : '' },
     { icon: <CustomerIcon />, label: 'Customers', onClick: () => setSelectedItem('customerManagement'), className: selectedItem === 'customerManagement' ? 'active-dock-item' : '' },
     { icon: <ReportIcon />, label: 'Reports', onClick: () => setSelectedItem('report'), className: selectedItem === 'report' ? 'active-dock-item' : '' },
-    { icon: <LogoutIcon />, label: 'Logout', onClick: handleLogout, className: '' }
+    { icon: <LogoutIcon />, label: 'Logout', onClick: () => setLogoutDialogOpen(true), className: '' }
   ];
 
   return (
@@ -83,6 +93,22 @@ const AdminDashboard = () => {
 
       {/* Dock */}
       <Dock items={dockItems} />
+
+      {/* Logout Dialog */}
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={() => setLogoutDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Logout</DialogTitle>
+        <DialogActions>
+          <Button onClick={() => setLogoutDialogOpen(false)} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button onClick={handleLogout} color="primary" disabled={isLoading}>
+            {isLoading ? <CircularProgress size={24} /> : 'Logout'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

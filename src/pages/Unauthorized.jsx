@@ -1,9 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { Button, Typography, Box, Container } from '@mui/material';
+import { logout } from '../redux/reducer/auth';
 
 const Unauthorized = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const handleReturnToLogin = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
 
   return (
     <Container maxWidth="sm">
@@ -28,7 +36,7 @@ const Unauthorized = () => {
         <Button
           variant="contained"
           color="primary"
-          onClick={() => navigate('/login')}
+          onClick={handleReturnToLogin}
           sx={{ mt: 2 }}
         >
           Return to Login

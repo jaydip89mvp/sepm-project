@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { setUser } from '../../redux/reducer/auth';
+import { useDispatch, useSelector } from 'react-redux';
+import { setUser, setError as setAuthError } from '../../redux/reducer/auth';
 import { authService } from '../../services/authService';
 import './LoginPage.css';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { isAuthenticated, role, error: authError } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -17,55 +18,97 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check if user is already logged in
+  // Check if user is already authenticated and navigate to appropriate dashboard
   useEffect(() => {
-    const storedUser = authService.getStoredUser();
-    if (storedUser) {
-      navigate(`/${storedUser.role.toLowerCase()}/dashboard`);
+    if (isAuthenticated && role) {
+      switch (role.toLowerCase()) {
+        case 'admin':
+          navigate('/admin/dashboard');
+          break;
+        case 'manager':
+          navigate('/manager/dashboard');
+          break;
+        case 'employee':
+          navigate('/employee/dashboard');
+          break;
+        default:
+          setError('Invalid role received');
+          navigate('/login');
+      }
     }
-  }, [navigate]);
+  }, [isAuthenticated, role, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear errors when user starts typing
+    if (error) setError('');
+    if (authError) dispatch(setAuthError(null));
+  };
+
+  const validateForm = () => {
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!formData.password.trim()) {
+      setError('Password is required');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    dispatch(setAuthError(null));
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
+      console.log('Submitting login form with email:', formData.email);
       const data = await authService.login(formData.email, formData.password);
       
-      if (!data || !data.email || !data.role) {
-        throw new Error('Invalid response from server');
+      if (!data) {
+        throw new Error('No response received from server');
       }
 
-      // Store user data
-      localStorage.setItem('userData', JSON.stringify({
-        email: data.email,
-        role: data.role
-      }));
+      if (!data.email || !data.role) {
+        console.error('Invalid response data:', data);
+        throw new Error('Invalid response from server: missing email or role');
+      }
 
-      // Update Redux state
+      console.log('Login successful, received data:', data);
+
+      // Update Redux state with user data and role
       dispatch(setUser({ 
         user: { email: data.email }, 
         role: data.role 
       }));
 
-      // Clear form and navigate
+      // Clear form
       setFormData({ email: '', password: '' });
-      navigate(`/${data.role.toLowerCase()}/dashboard`);
 
     } catch (err) {
+      console.error('Login error:', err);
       if (err.message.includes('Failed to fetch')) {
         setError('Unable to connect to the server. Please check if the server is running.');
       } else if (err.message.includes('non-JSON response')) {
         setError('Server error. Please try again later.');
+      } else if (err.message.includes('Invalid email or password')) {
+        setError('Invalid email or password. Please check your credentials.');
       } else {
         setError(err.message || 'An error occurred during login. Please try again.');
       }
+      dispatch(setAuthError(err.message));
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +151,11 @@ export const LoginPage = () => {
             />
           </div>
 
-          {error && <div className="error-message">{error}</div>}
+          {(error || authError) && (
+            <div className="error-message">
+              {error || authError}
+            </div>
+          )}
 
           <button type="submit" className="login-button" disabled={isLoading}>
             {isLoading ? 'Signing in...' : 'Sign In'}

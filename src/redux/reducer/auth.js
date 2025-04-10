@@ -1,13 +1,9 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { authService } from '../../services/authService';
-
-// Load initial state from localStorage
-const storedUser = authService.getStoredUser();
 
 const initialState = {
-  user: storedUser ? { email: storedUser.email } : null,
-  role: storedUser ? storedUser.role : null,
-  isAuthenticated: !!storedUser,
+  user: null,
+  role: null,
+  isAuthenticated: false,
   loading: false,
   error: null
 };
@@ -33,16 +29,9 @@ const authSlice = createSlice({
       state.role = null;
       state.isAuthenticated = false;
       state.error = null;
-      authService.logout();
-    },
-    userNotExists: (state) => {
-      state.user = null;
-      state.role = null;
-      state.isAuthenticated = false;
-      state.error = "User does not exist";
     }
   },
 });
 
-export const { setUser, setLoading, setError, logout, userNotExists } = authSlice.actions;
+export const { setUser, setLoading, setError, logout } = authSlice.actions;
 export default authSlice.reducer;

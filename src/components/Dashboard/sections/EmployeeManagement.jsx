@@ -15,20 +15,19 @@ import {
   Paper,
   IconButton,
   Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import { Edit, Delete, Add } from '@mui/icons-material';
-import axios from 'axios';
+import managerService from '../../../services/managerService';
 
 const EmployeeManagement = () => {
-  const [employees, setEmployees] = useState([
-    // Mock data for testing
-    {
-      email: 'test@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      phoneNumber: '123-456-7890'
-    }
-  ]);
+  const [employees, setEmployees] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -37,70 +36,88 @@ const EmployeeManagement = () => {
     firstName: '',
     lastName: '',
     password: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    role: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
-  // Comment out useEffect and fetchEmployees for now
-  // useEffect(() => {
-  //   fetchEmployees();
-  // }, []);
+  useEffect(() => {
+    fetchEmployees();
+    fetchRoles();
+  }, []);
 
-  // const fetchEmployees = async () => {
-  //   try {
-  //     const response = await axios.get('/manager/getallemployees');
-  //     setEmployees(response.data);
-  //   } catch (error) {
-  //     console.error('Error fetching employees:', error);
-  //   }
-  // };
+  const fetchEmployees = async () => {
+    setIsLoading(true);
+    try {
+      const response = await managerService.getAllEmployees();
+      setEmployees(response.data || []);
+    } catch (error) {
+      showSnackbar(error.response?.data?.message || 'Error fetching employees', 'error');
+      setEmployees([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const response = await managerService.getEmployeeRoles();
+      console.log(response);
+      if (response.data && Array.isArray(response.data)) {
+        setRoles(response.data);
+      } else {
+        console.error('Invalid roles data:', response.data);
+        setRoles([]);
+        showSnackbar('Error loading roles', 'error');
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      setRoles([]);
+      showSnackbar(error.response?.data?.message || 'Error fetching roles', 'error');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email || !formData.firstName || !formData.lastName) {
+    if (!formData.email || !formData.firstName || !formData.lastName || !formData.role) {
+      showSnackbar('Please fill in all required fields', 'error');
       return;
     }
     
-    // Modified to work without backend
-    if (editMode) {
-      // Update existing employee in the frontend
-      setEmployees(employees.map(emp => 
-        emp.email === formData.email ? formData : emp
-      ));
-    } else {
-      // Add new employee to the frontend
-      setEmployees([...employees, formData]);
+    setIsLoading(true);
+    try {
+      if (editMode) {
+        await managerService.updateEmployee(formData);
+        showSnackbar('Employee updated successfully', 'success');
+      } else {
+        await managerService.addEmployee(formData);
+        showSnackbar('Employee added successfully', 'success');
+      }
+      setOpen(false);
+      fetchEmployees();
+      resetForm();
+    } catch (error) {
+      const errorData = managerService.handleError(error);
+      showSnackbar(errorData.message, 'error');
+    } finally {
+      setIsLoading(false);
     }
-    setOpen(false);
-    resetForm();
-    
-    // Comment out API calls
-    // try {
-    //   if (editMode) {
-    //     await axios.put('/manager/updateEmployee', formData);
-    //   } else {
-    //     await axios.post('/manager/addemployee', formData);
-    //   }
-    //   setOpen(false);
-    //   fetchEmployees();
-    //   resetForm();
-    // } catch (error) {
-    //   console.error('Error:', error);
-    // }
   };
 
   const handleDelete = async (email) => {
-    // Modified to work without backend
-    setEmployees(employees.filter(emp => emp.email !== email));
-    
-    // Comment out API call
-    // try {
-    //   await axios.put(`/manager/deleteemployee?email=${email}`);
-    //   fetchEmployees();
-    // } catch (error) {
-    //   console.error('Error deleting employee:', error);
-    // }
+    try {
+      await managerService.deleteEmployee(email);
+      showSnackbar('Employee deleted successfully', 'success');
+      fetchEmployees();
+    } catch (error) {
+      const errorData = managerService.handleError(error);
+      showSnackbar(errorData.message, 'error');
+    }
   };
 
   const resetForm = () => {
@@ -109,10 +126,19 @@ const EmployeeManagement = () => {
       firstName: '',
       lastName: '',
       password: '',
-      phoneNumber: ''
+      phoneNumber: '',
+      role: ''
     });
     setEditMode(false);
     setSelectedEmployee(null);
+  };
+
+  const showSnackbar = (message, severity) => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
   };
 
   return (
@@ -135,6 +161,7 @@ const EmployeeManagement = () => {
               <TableCell>Email</TableCell>
               <TableCell>First Name</TableCell>
               <TableCell>Last Name</TableCell>
+              <TableCell>Role</TableCell>
               <TableCell>Phone Number</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -145,17 +172,27 @@ const EmployeeManagement = () => {
                 <TableCell>{employee.email}</TableCell>
                 <TableCell>{employee.firstName}</TableCell>
                 <TableCell>{employee.lastName}</TableCell>
+                <TableCell>{employee.assigned?.name}</TableCell>
                 <TableCell>{employee.phoneNumber}</TableCell>
                 <TableCell>
-                  <IconButton onClick={() => {
-                    setSelectedEmployee(employee);
-                    setFormData(employee);
-                    setEditMode(true);
-                    setOpen(true);
-                  }}>
+                  <IconButton 
+                    onClick={() => {
+                      setSelectedEmployee(employee);
+                      setFormData({
+                        ...employee,
+                        role: employee.assigned?.name
+                      });
+                      setEditMode(true);
+                      setOpen(true);
+                    }}
+                    disabled={isLoading}
+                  >
                     <Edit />
                   </IconButton>
-                  <IconButton onClick={() => handleDelete(employee.email)}>
+                  <IconButton 
+                    onClick={() => handleDelete(employee.email)}
+                    disabled={isLoading}
+                  >
                     <Delete />
                   </IconButton>
                 </TableCell>
@@ -165,10 +202,15 @@ const EmployeeManagement = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={open} onClose={() => {
-        setOpen(false);
-        resetForm();
-      }}>
+      <Dialog 
+        open={open} 
+        onClose={() => {
+          setOpen(false);
+          resetForm();
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>{editMode ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
@@ -179,6 +221,7 @@ const EmployeeManagement = () => {
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
               disabled={editMode}
+              required
             />
             <TextField
               fullWidth
@@ -186,6 +229,7 @@ const EmployeeManagement = () => {
               label="First Name"
               value={formData.firstName}
               onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+              required
             />
             <TextField
               fullWidth
@@ -193,7 +237,28 @@ const EmployeeManagement = () => {
               label="Last Name"
               value={formData.lastName}
               onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+              required
             />
+            <FormControl fullWidth margin="normal" required>
+              <InputLabel>Role</InputLabel>
+              <Select
+                value={formData.role}
+                onChange={(e) => setFormData({...formData, role: e.target.value})}
+                label="Role"
+              >
+                {Array.isArray(roles) && roles.length > 0 ? (
+                  roles.map((role) => (
+                    <MenuItem key={role.name} value={role.name}>
+                      {role.name}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled value="">
+                    No roles available
+                  </MenuItem>
+                )}
+              </Select>
+            </FormControl>
             {!editMode && (
               <TextField
                 fullWidth
@@ -202,6 +267,7 @@ const EmployeeManagement = () => {
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
+                required
               />
             )}
             <TextField
@@ -216,12 +282,26 @@ const EmployeeManagement = () => {
               variant="contained"
               type="submit"
               sx={{ mt: 2 }}
+              disabled={isLoading}
             >
               {editMode ? 'Update' : 'Add'}
             </Button>
           </Box>
         </DialogContent>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
