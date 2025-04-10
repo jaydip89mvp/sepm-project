@@ -26,12 +26,13 @@ import {
   Warning
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import employeeService from '../services/employeeService';
 
 const UpdateStock = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState('');
-  const [updateType, setUpdateType] = useState('add');
+  const [updateType, setUpdateType] = useState('ADD');
   const [quantity, setQuantity] = useState('');
   const [supplier, setSupplier] = useState('');
   const [note, setNote] = useState('');
@@ -41,31 +42,30 @@ const UpdateStock = () => {
 
   // Fetch products from API
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await fetch('/api/products');
-        if (response.ok) {
-          const data = await response.json();
-          setProducts(data);
-        } else {
-          setError('Failed to fetch products. Please try again.');
-        }
-      } catch (err) {
-        setError('Network error. Please check your connection.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await employeeService.getAllProducts();
+      if (response.success) {
+        setProducts(response.data);
+      } else {
+        setError('Failed to fetch products. Please try again.');
+      }
+    } catch (err) {
+      setError('Network error. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Update current stock when product selection changes
   useEffect(() => {
     if (selectedProduct) {
-      const product = products.find(p => p.id.toString() === selectedProduct.toString());
+      const product = products.find(p => p.productId === selectedProduct);
       if (product) {
-        setCurrentStock(product.quantity);
+        setCurrentStock(product.stockLevel);
       }
     } else {
       setCurrentStock(0);
@@ -109,12 +109,12 @@ const UpdateStock = () => {
       return false;
     }
 
-    if (updateType === 'remove' && parseInt(quantity) > currentStock) {
+    if (updateType === 'REMOVE' && parseInt(quantity) > currentStock) {
       setError(`Cannot remove ${quantity} units. Current stock is ${currentStock}`);
       return false;
     }
 
-    if (updateType === 'add' && !supplier) {
+    if (updateType === 'ADD' && !supplier) {
       setError('Please enter a supplier name');
       return false;
     }
@@ -130,30 +130,26 @@ const UpdateStock = () => {
     }
 
     try {
-      const updatedQuantity = updateType === 'add' 
-        ? parseInt(currentStock) + parseInt(quantity)
-        : parseInt(currentStock) - parseInt(quantity);
-      
-      const response = await fetch(`/api/products/${selectedProduct}/update-stock`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          quantity: updatedQuantity,
-          quantityChanged: parseInt(quantity)
-        }),
-      });
+      const response = await employeeService.updateProductStock(
+        selectedProduct,
+        quantity,
+        updateType
+      );
 
-      if (response.ok) {
+      if (response.success) {
         // Update products list with new stock quantity
-        setProducts(products.map(product => 
-          product.id.toString() === selectedProduct.toString()
-            ? { ...product, quantity: updatedQuantity }
-            : product
-        ));
+        const updatedProducts = products.map(product => {
+          if (product.productId === selectedProduct) {
+            const newStock = updateType === 'ADD' 
+              ? product.stockLevel + parseInt(quantity)
+              : product.stockLevel - parseInt(quantity);
+            return { ...product, stockLevel: newStock };
+          }
+          return product;
+        });
         
-        setSuccess(`Stock successfully ${updateType === 'add' ? 'added to' : 'removed from'} inventory!`);
+        setProducts(updatedProducts);
+        setSuccess(`Stock successfully ${updateType === 'ADD' ? 'added to' : 'removed from'} inventory!`);
         
         // Reset form
         setQuantity('');
@@ -161,10 +157,12 @@ const UpdateStock = () => {
         setNote('');
         
         // Update current stock
-        setCurrentStock(updatedQuantity);
+        const product = updatedProducts.find(p => p.productId === selectedProduct);
+        if (product) {
+          setCurrentStock(product.stockLevel);
+        }
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to update stock. Please try again.');
+        setError(response.message || 'Failed to update stock. Please try again.');
       }
     } catch (err) {
       setError('Network error. Please check your connection and try again.');
@@ -236,8 +234,8 @@ const UpdateStock = () => {
                             <em>Select a product</em>
                           </MenuItem>
                           {products.map((product) => (
-                            <MenuItem key={product.id} value={product.id}>
-                              {product.name} - Current Stock: {product.quantity}
+                            <MenuItem key={product.productId} value={product.productId}>
+                              {product.name} - Current Stock: {product.stockLevel}
                             </MenuItem>
                           ))}
                         </Select>
@@ -273,12 +271,12 @@ const UpdateStock = () => {
                               label="Update Type"
                               startAdornment={
                                 <InputAdornment position="start">
-                                  {updateType === 'add' ? <AddCircleOutline /> : <RemoveCircleOutline />}
+                                  {updateType === 'ADD' ? <AddCircleOutline /> : <RemoveCircleOutline />}
                                 </InputAdornment>
                               }
                             >
-                              <MenuItem value="add">Add Stock</MenuItem>
-                              <MenuItem value="remove">Remove Stock</MenuItem>
+                              <MenuItem value="ADD">Add Stock</MenuItem>
+                              <MenuItem value="REMOVE">Remove Stock</MenuItem>
                             </Select>
                           </FormControl>
                         </Grid>
@@ -294,7 +292,7 @@ const UpdateStock = () => {
                               className: "input-3d",
                               startAdornment: (
                                 <InputAdornment position="start">
-                                  {updateType === 'add' ? <AddCircleOutline /> : <RemoveCircleOutline />}
+                                  {updateType === 'ADD' ? <AddCircleOutline /> : <RemoveCircleOutline />}
                                 </InputAdornment>
                               ),
                             }}
@@ -302,7 +300,7 @@ const UpdateStock = () => {
                           />
                         </Grid>
                         
-                        {updateType === 'add' && (
+                        {updateType === 'ADD' && (
                           <Grid item xs={12}>
                             <TextField
                               label="Supplier"
@@ -355,7 +353,7 @@ const UpdateStock = () => {
                               }
                             }}
                           >
-                            {updateType === 'add' ? 'Add Stock' : 'Remove Stock'}
+                            {updateType === 'ADD' ? 'Add Stock' : 'Remove Stock'}
                           </Button>
                         </Grid>
                       </>

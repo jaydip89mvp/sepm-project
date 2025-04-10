@@ -33,6 +33,7 @@ import {
   Warning
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import employeeService from '../services/employeeService';
 
 const RequestStock = () => {
   const [products, setProducts] = useState([]);
@@ -40,30 +41,20 @@ const RequestStock = () => {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [supplier, setSupplier] = useState('');
-  const [urgency, setUrgency] = useState('normal');
-  const [notes, setNotes] = useState('');
+  const [priority, setPriority] = useState('NORMAL');
+  const [additional, setAdditional] = useState('');
+  const [cost, setCost] = useState('');
+  const [price, setPrice] = useState('');
   const [requests, setRequests] = useState([]);
   const [draftId, setDraftId] = useState(1);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  const urgencyOptions = [
-    { value: 'low', label: 'Low Priority' },
-    { value: 'normal', label: 'Normal' },
-    { value: 'high', label: 'High Priority' },
-    { value: 'urgent', label: 'Urgent - ASAP' }
-  ];
-
-  const supplierOptions = [
-    'Office Depot',
-    'Tech Solutions Inc.',
-    'Global Supply Co.',
-    'Quality Furniture Ltd.',
-    'Electra Electronics',
-    'Central Stationery',
-    'BestValue Wholesalers',
-    'Premier Equipment Suppliers'
+  const priorityOptions = [
+    { value: 'LOW', label: 'Low Priority' },
+    { value: 'NORMAL', label: 'Normal' },
+    { value: 'HIGH', label: 'High Priority' },
+    { value: 'URGENT', label: 'Urgent - ASAP' }
   ];
 
   // Fetch products and low stock items from API
@@ -71,16 +62,13 @@ const RequestStock = () => {
     const fetchData = async () => {
       try {
         const [productsResponse, lowStockResponse] = await Promise.all([
-          fetch('/api/products'),
-          fetch('/api/products/low-stock')
+          employeeService.getProductCategories(),
+          employeeService.getLowStockProducts()
         ]);
 
-        if (productsResponse.ok && lowStockResponse.ok) {
-          const productsData = await productsResponse.json();
-          const lowStockData = await lowStockResponse.json();
-          
-          setProducts(productsData);
-          setLowStockProducts(lowStockData);
+        if (productsResponse.success && lowStockResponse.success) {
+          setProducts(productsResponse.data);
+          setLowStockProducts(lowStockResponse.data);
         } else {
           setError('Failed to fetch products. Please try again.');
         }
@@ -99,10 +87,10 @@ const RequestStock = () => {
     setSelectedProduct(productId);
     
     if (productId) {
-      const product = products.find(p => p.id.toString() === productId.toString());
-      if (product && product.minQuantity) {
+      const product = products.find(p => p.productId === productId);
+      if (product && product.reorderLevel) {
         // Suggest ordering quantity to bring stock up to acceptable level
-        const suggestedQuantity = Math.max(0, product.minQuantity * 2 - product.quantity);
+        const suggestedQuantity = Math.max(0, product.reorderLevel * 2 - product.stockLevel);
         setQuantity(suggestedQuantity.toString());
       }
     } else {
@@ -115,17 +103,21 @@ const RequestStock = () => {
       return;
     }
 
-    const product = products.find(p => p.id.toString() === selectedProduct.toString());
+    const product = products.find(p => p.productId === selectedProduct);
     
     const newRequest = {
       id: draftId,
       productId: selectedProduct,
       productName: product.name,
       quantity: parseInt(quantity),
-      currentStock: product.quantity,
-      minStock: product.minQuantity
+      currentStock: product.stockLevel,
+      reorderLevel: product.reorderLevel,
+      priority: priority,
+      additional: additional || '',
+      cost: parseFloat(cost) || 0.0,
+      price: parseFloat(price) || 0.0,
+      status: 'PENDING'
     };
-    
     
     setRequests([...requests, newRequest]);
     setDraftId(draftId + 1);
@@ -133,9 +125,10 @@ const RequestStock = () => {
     // Reset form fields
     setSelectedProduct('');
     setQuantity('');
-    setSupplier('');
-    setUrgency('normal');
-    setNotes('');
+    setPriority('NORMAL');
+    setAdditional('');
+    setCost('');
+    setPrice('');
     
     setSuccess('Request added to draft list');
   };
@@ -151,26 +144,28 @@ const RequestStock = () => {
     }
     
     try {
-      const response = await fetch('/api/stock-requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          requests: requests.map(request => ({
+      const results = await Promise.all(
+        requests.map(request => 
+          employeeService.addRefillRequest({
             productId: request.productId,
-            quantity: request.quantity,
-          }))
-        })
-      });
+            quantity: parseInt(request.quantity),
+            priority: request.priority,
+            additional: request.additional || '',
+            cost: parseFloat(request.cost) || 0.0,
+            price: parseFloat(request.price) || 0.0,
+            status: 'PENDING'  // Initial status for new requests
+          })
+        )
+      );
       
-      if (response.ok) {
+      const hasErrors = results.some(result => !result.success);
+      
+      if (!hasErrors) {
         setSuccess('Stock requests submitted successfully!');
         setRequests([]);
         setDraftId(1);
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to submit requests. Please try again.');
+        setError('Some requests failed to submit. Please try again.');
       }
     } catch (err) {
       setError('Network error. Please check your connection and try again.');
@@ -183,13 +178,18 @@ const RequestStock = () => {
       return false;
     }
     
-    if (!quantity || quantity <= 0) {
+    if (!quantity || parseInt(quantity) <= 0) {
       setError('Please enter a valid quantity (greater than 0)');
       return false;
     }
     
-    if (!supplier) {
-      setError('Please select a supplier');
+    if (cost && isNaN(parseFloat(cost))) {
+      setError('Please enter a valid cost');
+      return false;
+    }
+    
+    if (price && isNaN(parseFloat(price))) {
+      setError('Please enter a valid price');
       return false;
     }
     
@@ -201,13 +201,13 @@ const RequestStock = () => {
     setError('');
   };
 
-  // Helper function to determine urgency color
-  const getUrgencyColor = (urgency) => {
-    switch (urgency) {
-      case 'low': return 'info';
-      case 'normal': return 'success';
-      case 'high': return 'warning';
-      case 'urgent': return 'error';
+  // Helper function to determine priority color
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'LOW': return 'info';
+      case 'NORMAL': return 'success';
+      case 'HIGH': return 'warning';
+      case 'URGENT': return 'error';
       default: return 'default';
     }
   };
@@ -265,11 +265,11 @@ const RequestStock = () => {
                         )}
                         
                         {lowStockProducts.map((product) => (
-                          <MenuItem key={`low-${product.id}`} value={product.id}>
+                          <MenuItem key={`low-${product.productId}`} value={product.productId}>
                             {product.name} 
                             <Chip 
                               size="small" 
-                              label={`${product.quantity} in stock`}
+                              label={`${product.stockLevel} in stock`}
                               color="warning"
                               sx={{ ml: 1, height: '20px' }}
                             />
@@ -281,8 +281,8 @@ const RequestStock = () => {
                         </MenuItem>
                         
                         {products.map((product) => (
-                          <MenuItem key={product.id} value={product.id}>
-                            {product.name} ({product.quantity} in stock)
+                          <MenuItem key={product.productId} value={product.productId}>
+                            {product.name} ({product.stockLevel} in stock)
                           </MenuItem>
                         ))}
                       </Select>
@@ -308,7 +308,72 @@ const RequestStock = () => {
                     />
                   </Grid>
                   
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth className="input-3d">
+                      <InputLabel id="priority-select-label">Priority</InputLabel>
+                      <Select
+                        labelId="priority-select-label"
+                        value={priority}
+                        onChange={(e) => setPriority(e.target.value)}
+                        label="Priority"
+                        startAdornment={
+                          <InputAdornment position="start">
+                            <Warning />
+                          </InputAdornment>
+                        }
+                      >
+                        {priorityOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
                   
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      label="Cost"
+                      type="number"
+                      fullWidth
+                      value={cost}
+                      onChange={(e) => setCost(e.target.value)}
+                      InputProps={{
+                        className: "input-3d",
+                        startAdornment: (
+                          <InputAdornment position="start">$</InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      label="Price"
+                      type="number"
+                      fullWidth
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      InputProps={{
+                        className: "input-3d",
+                        startAdornment: (
+                          <InputAdornment position="start">$</InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <TextField
+                      label="Additional Notes"
+                      multiline
+                      rows={2}
+                      fullWidth
+                      value={additional}
+                      onChange={(e) => setAdditional(e.target.value)}
+                      className="input-3d"
+                    />
+                  </Grid>
                   
                   <Grid item xs={12} sx={{ mt: 2 }}>
                     <Button
@@ -391,9 +456,39 @@ const RequestStock = () => {
                               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                 {request.productName}
                               </Typography>
+                              <Chip
+                                size="small"
+                                label={request.priority}
+                                color={getPriorityColor(request.priority)}
+                                sx={{ ml: 1 }}
+                              />
                             </Box>
                           }
-                          
+                          secondary={
+                            <Box>
+                              <Typography variant="body2" color="text.secondary">
+                                Quantity: {request.quantity} units
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Current Stock: {request.currentStock} units
+                              </Typography>
+                              {request.cost > 0 && (
+                                <Typography variant="body2" color="text.secondary">
+                                  Cost: ${request.cost.toFixed(2)}
+                                </Typography>
+                              )}
+                              {request.price > 0 && (
+                                <Typography variant="body2" color="text.secondary">
+                                  Price: ${request.price.toFixed(2)}
+                                </Typography>
+                              )}
+                              {request.additional && (
+                                <Typography variant="body2" color="text.secondary">
+                                  Notes: {request.additional}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
                         />
                         <ListItemSecondaryAction>
                           <IconButton 
@@ -424,7 +519,7 @@ const RequestStock = () => {
                 
                 <Grid container spacing={2}>
                   {lowStockProducts.map((product) => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={product.productId}>
                       <Paper 
                         elevation={2} 
                         sx={{ 
@@ -437,10 +532,10 @@ const RequestStock = () => {
                           {product.name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Current Stock: <b>{product.quantity}</b> units
+                          Current Stock: <b>{product.stockLevel}</b> units
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Minimum Level: {product.minQuantity} units
+                          Reorder Level: {product.reorderLevel} units
                         </Typography>
                         <Button
                           size="small"
@@ -449,9 +544,9 @@ const RequestStock = () => {
                           sx={{ mt: 1 }}
                           startIcon={<AddIcon />}
                           onClick={() => {
-                            setSelectedProduct(product.id.toString());
-                            setQuantity(Math.max(product.minQuantity * 2 - product.quantity, 1).toString());
-                            setUrgency(product.quantity <= 1 ? 'urgent' : 'high');
+                            setSelectedProduct(product.productId);
+                            setQuantity(Math.max(product.reorderLevel * 2 - product.stockLevel, 1).toString());
+                            setPriority(product.stockLevel <= 1 ? 'URGENT' : 'HIGH');
                           }}
                         >
                           Add to Request

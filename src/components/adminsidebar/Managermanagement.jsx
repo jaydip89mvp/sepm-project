@@ -41,11 +41,7 @@ import {
 } from "@mui/icons-material";
 
 import { motion } from "framer-motion";
-import axios from "axios";
-
-const API_BASE_URL = 'http://localhost:8080/api'; // Update this to match your backend URL
-
-axios.defaults.baseURL = API_BASE_URL;
+import adminService from '../../services/adminService';
 
 const ManagerManagement = () => {
   const [managers, setManagers] = useState([]);
@@ -78,33 +74,11 @@ const ManagerManagement = () => {
     const fetchManagers = async () => {
       try {
         setLoading(true);
-        setError(null);
-        const response = await axios.get('/managers');
+        const response = await adminService.getAllManagers();
         setManagers(response.data);
       } catch (error) {
         console.error('Error fetching managers:', error);
-        setError('Failed to load managers. Please try again later.');
-        // Fallback data if API fails in development
-        if (process.env.NODE_ENV === 'development') {
-          setManagers([
-            {
-              id: 1,
-              name: "John Thompson",
-              email: "john.t@inventorysys.com",
-              department: "Electronics",
-              phone: "555-0123",
-              active: true
-            },
-            {
-              id: 2,
-              name: "Sarah Miller",
-              email: "sarah.m@inventorysys.com",
-              department: "Home Goods",
-              phone: "555-0124",
-              active: true
-            }
-          ]);
-        }
+        setError('Failed to fetch managers');
       } finally {
         setLoading(false);
       }
@@ -117,35 +91,20 @@ const ManagerManagement = () => {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        setLoadingDepartments(true);
-        setError(null);
-        const response = await axios.get('/departments');
+        const response = await adminService.getManagerRoles();
+        // Store the full role objects
         setDepartments(response.data);
         
-        // Update form default department if not already set
+        // Set default department if not already set
         if (!formData.department && response.data.length > 0) {
           setFormData(prev => ({
             ...prev,
-            department: response.data[0]
+            department: response.data[0].name.replace('MANAGER_', '')
           }));
         }
       } catch (error) {
         console.error('Error fetching departments:', error);
-        setError('Failed to load departments. Please try again later.');
-        // Fallback data if API fails in development
-        if (process.env.NODE_ENV === 'development') {
-          const fallbackDepts = ["Electronics", "Home Goods", "Clothing", "Food & Beverage", "Sporting Goods"];
-          setDepartments(fallbackDepts);
-          
-          if (!formData.department) {
-            setFormData(prev => ({
-              ...prev,
-              department: fallbackDepts[0]
-            }));
-          }
-        }
-      } finally {
-        setLoadingDepartments(false);
+        setError('Failed to fetch departments');
       }
     };
 
@@ -170,7 +129,7 @@ const ManagerManagement = () => {
       setFormData({
         name: "",
         email: "",
-        department: departments[0] || '',
+        department: departments[0]?.name.replace('MANAGER_', '') || '',
         phone: "",
         active: true
       });
@@ -209,59 +168,63 @@ const ManagerManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    if (!validateForm()) {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    
     try {
+      setLoading(true);
+      
+      // Find the selected role object
+      const selectedRole = departments.find(role => 
+        role.name === `MANAGER_${formData.department}`
+      );
+      
+      if (!selectedRole) {
+        setError('Selected department not found');
+        setLoading(false);
+        return;
+      }
+      
+      // Prepare manager data according to the User model
+      const managerData = {
+        email: formData.email,
+        contact: formData.phone,
+        active: formData.active,
+        // Add the assigned role object
+        assigned: selectedRole
+      };
+
       if (editMode && currentManager) {
-        // Update existing manager
-        const response = await axios.put(`/managers/${currentManager.id}`, formData);
-        
-        if (!response.data) throw new Error('No data received from server');
-        
-        const updatedManagers = managers.map(mgr => 
-          mgr.id === currentManager.id ? response.data : mgr
-        );
-        setManagers(updatedManagers);
+        await adminService.updateManager(managerData);
         showSnackbar('Manager updated successfully');
       } else {
-        // Add new manager
-        const avatar = formData.name.split(' ').map(n => n[0]).join('');
-        const newManagerData = {
-          ...formData,
-          avatar
-        };
-        
-        const response = await axios.post('/managers', newManagerData);
-        
-        if (!response.data) throw new Error('No data received from server');
-        
-        setManagers([...managers, response.data]);
+        // For new managers, we need to set a default password
+        managerData.password = "defaultPassword123"; // This should be changed by the user later
+        await adminService.addManager(managerData);
         showSnackbar('Manager added successfully');
       }
+
       handleClose();
+      fetchManagers();
     } catch (error) {
       console.error('Error saving manager:', error);
-      setError(error.response?.data?.message || 'Failed to save manager. Please try again.');
+      setError(error.response?.data?.message || 'Failed to save manager');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`/managers/${id}`);
-      setManagers(managers.filter(mgr => mgr.id !== id));
-      showSnackbar('Manager deleted successfully');
-    } catch (error) {
-      console.error('Error deleting manager:', error);
-      showSnackbar('Failed to delete manager', 'error');
+  const handleDelete = async (email) => {
+    if (window.confirm('Are you sure you want to deactivate this manager?')) {
+      try {
+        await adminService.deleteManager(email);
+        showSnackbar('Manager deactivated successfully');
+        fetchManagers();
+      } catch (error) {
+        console.error('Error deactivating manager:', error);
+        setError('Failed to deactivate manager');
+      }
     }
   };
 
@@ -464,7 +427,7 @@ const ManagerManagement = () => {
                         <IconButton 
                           size="small" 
                           color="error"
-                          onClick={() => handleDelete(manager.id)}
+                          onClick={() => handleDelete(manager.email)}
                           className="btn-3d"
                           sx={{ 
                             backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -614,15 +577,27 @@ const ManagerManagement = () => {
                     ) : departments.length === 0 ? (
                       <MenuItem value="" disabled>No departments available</MenuItem>
                     ) : (
-                      departments.map((dept, index) => (
-                        <MenuItem key={index} value={dept}>{dept}</MenuItem>
+                      departments.map((role, index) => (
+                        <MenuItem key={index} value={role.name.replace('MANAGER_', '')}>{role.name.replace('MANAGER_', '')}</MenuItem>
                       ))
                     )}
                   </Select>
                 </FormControl>
               </Grid>
 
-              
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.active}
+                      onChange={handleSwitchChange}
+                      name="active"
+                    />
+                  }
+                  label="Active"
+                  sx={{ mt: 2 }}
+                />
+              </Grid>
             </Grid>
             
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
