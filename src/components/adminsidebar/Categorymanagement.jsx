@@ -17,19 +17,26 @@ import {
   Chip,
   Avatar,
   Snackbar,
-  Alert
+  Alert,
+  CircularProgress,
+  IconButton
 } from "@mui/material";
 import {
   Add as AddIcon,
-  Category as CategoryIcon
+  Category as CategoryIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import adminService from "../../services/adminService";
+import { alpha } from "@mui/material/styles";
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: "" });
+  const [formData, setFormData] = useState({ 
+    name: ""
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -43,34 +50,35 @@ const CategoryManagement = () => {
   }, []);
 
   const fetchCategories = async () => {
-    setIsLoading(true);
     try {
-      console.log('Fetching categories...');
+      setIsLoading(true);
       const response = await adminService.getManagerRoles();
-      console.log('Raw categories data:', response.data);
-      
-      // Transform the categories
-      const transformedCategories = (response.data || []).map(role => ({
-        ...role,
-        id: role.id || Math.random().toString(36).substr(2, 9),
-        name: role.name.replace('MANAGER_', ''),
-        displayName: role.name.replace('MANAGER_', ''),
-        description: role.description || 'Manager Category',
-        color: role.color || '#' + Math.floor(Math.random()*16777215).toString(16)
-      }));
-      
-      console.log('Transformed categories:', transformedCategories);
-      setCategories(transformedCategories);
+      console.log('Categories response:', response);
 
-      // Show appropriate message
-      if (transformedCategories.length === 0) {
-        showSnackbar("No categories found. Add some categories to get started.", "info");
+      if (response && response.data) {
+        // Transform the categories for display
+        const transformedCategories = response.data.map(category => {
+          const displayName = category.name.replace('MANAGER_', '').split('_').join(' ');
+          return {
+            id: category.id || Math.random().toString(36).substr(2, 9),
+            name: category.name,
+            displayName: displayName,
+            color: category.color || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+          };
+        });
+
+        console.log('Transformed categories:', transformedCategories);
+        setCategories(transformedCategories);
+        showSnackbar('Categories loaded successfully', 'success');
+      } else {
+        console.warn('No categories found in response');
+        setCategories([]);
+        showSnackbar('No categories found', 'warning');
       }
     } catch (error) {
-      console.error('Error in fetchCategories:', error);
-      const errorData = adminService.handleError(error);
-      showSnackbar(errorData.message, "error");
+      console.error('Error fetching categories:', error);
       setCategories([]);
+      showSnackbar(error.message || 'Failed to load categories', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -103,31 +111,35 @@ const CategoryManagement = () => {
 
     setIsLoading(true);
     try {
-      const categoryName = formData.name.trim().toUpperCase();
-      console.log('Adding category:', categoryName);
-      
-      const response = await adminService.addCategory({
-        name: categoryName,
-        description: "Manager Category"
+      const result = await adminService.addCategory({
+        name: formData.name.trim()
       });
       
-      if (response.status === 200) {
-        showSnackbar("Category added successfully", "success");
-        setFormData({ name: "" }); // Clear form
-        handleClose();
-        
-        // Fetch updated categories
-        await fetchCategories();
-      } else {
-        showSnackbar(response.data || "Failed to add category", "error");
-      }
+      // Show success message
+      showSnackbar(result.message, "success");
+      
+      // Close dialog and reset form
+      handleClose();
+      
+      // Refresh the categories list
+      await fetchCategories();
+      
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      const errorData = adminService.handleError(error);
-      showSnackbar(errorData.message, "error");
+      showSnackbar(error.message || "Failed to add category", "error");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEditCategory = (category) => {
+    // TODO: Implement edit functionality
+    showSnackbar("Edit functionality coming soon", "info");
+  };
+
+  const handleDeleteCategory = (categoryId) => {
+    // TODO: Implement delete functionality
+    showSnackbar("Delete functionality coming soon", "info");
   };
 
   const containerVariants = {
@@ -212,58 +224,62 @@ const CategoryManagement = () => {
             <TableHead sx={{ backgroundColor: 'rgba(242, 242, 247, 0.8)' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Category Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Description</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {categories.map((category) => (
-                <motion.tr
-                  key={category.name}
-                  variants={itemVariants}
-                  component={TableRow}
-                  sx={{
-                    '&:hover': {
-                      backgroundColor: 'rgba(242, 242, 247, 0.5)'
-                    }
-                  }}
-                >
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar
-                        sx={{
-                          backgroundColor: `${category.color || "#ddd"}20`,
-                          color: category.color || "#333",
-                          fontWeight: 'bold',
-                          width: 36,
-                          height: 36,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                        }}
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center">
+                    <CircularProgress />
+                  </TableCell>
+                </TableRow>
+              ) : categories.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center">
+                    <Typography variant="body1" color="textSecondary">
+                      No categories found. Add a new category to get started.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                categories.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar
+                          sx={{
+                            bgcolor: category.color || '#1976d2',
+                            width: 32,
+                            height: 32
+                          }}
+                        >
+                          {category.displayName ? category.displayName[0].toUpperCase() : '#'}
+                        </Avatar>
+                        <Typography variant="body1">
+                          {category.displayName || 'Unnamed Category'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditCategory(category)}
+                        color="primary"
                       >
-                        {category.displayName?.charAt(0)}
-                      </Avatar>
-                      <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                        {category.displayName}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      icon={<CategoryIcon fontSize="small" />}
-                      label={category.description || "Manager Category"}
-                      size="small"
-                      sx={{
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        color: 'primary.main',
-                        fontWeight: 500,
-                        '& .MuiChip-icon': {
-                          color: 'primary.main',
-                          ml: 0.5
-                        }
-                      }}
-                    />
-                  </TableCell>
-                </motion.tr>
-              ))}
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteCategory(category.id)}
+                        color="error"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
@@ -299,7 +315,7 @@ const CategoryManagement = () => {
               margin="normal"
               label="Category Name"
               value={formData.name}
-              onChange={(e) => setFormData({ name: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               variant="outlined"
               disabled={isLoading}
               sx={{

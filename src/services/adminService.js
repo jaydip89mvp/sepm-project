@@ -63,83 +63,73 @@ const adminService = {
         try {
             console.log('Fetching manager roles...');
             const response = await axiosInstance.get('/getmanagerroles');
-            console.log('Raw manager roles response:', respon
-                se);
-            
-            // If the response is empty or invalid, return empty array
-            if (!response.data) {
-                console.warn('Empty response data received');
-                return { data: [] };
-            }
+            console.log('Raw manager roles response:', response);
 
-            // If the response is a string message (like "Access is denied"), return empty array
-            if (typeof response.data === 'string') {
-                console.warn('String response received:', response.data);
-                return { data: [] };
+            if (response.status === 200) {
+                // Handle both array and object response formats
+                const roles = Array.isArray(response.data) ? response.data :
+                            (response.data.data ? response.data.data : []);
+                
+                return {
+                    success: true,
+                    data: roles.map(role => {
+                        // Clean the role name by removing any MANAGER_ prefix and converting to display format
+                        const cleanName = role.name.replace(/^MANAGER_/, '');
+                        const displayName = cleanName.split('_').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                        ).join(' ');
+                        
+                        return {
+                            id: role.id || Math.random().toString(36).substr(2, 9),
+                            name: role.name,
+                            displayName: displayName,
+                            color: role.color || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+                        };
+                    })
+                };
             }
-
-            // Ensure we have an array and filter for MANAGER_ roles
-            let roles = Array.isArray(response.data) ? response.data : [response.data];
-            roles = roles.filter(role => role && role.name && role.name.startsWith('MANAGER_'));
-            
-            console.log('Filtered manager roles:', roles);
-            return { data: roles };
+            throw new Error('Invalid response from server');
         } catch (error) {
-            console.error('Error in getManagerRoles:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
-            });
+            console.error('Error in getManagerRoles:', error);
+            if (error.response) {
+                throw new Error(error.response.data?.message || 'Failed to fetch manager roles');
+            } else if (error.request) {
+                throw new Error('Network error - no response received');
+            }
             throw error;
         }
     },
 
     // Add new category
-    addCategory: async (category) => {
+    addCategory: async (categoryData) => {
         try {
-            if (!category.name) {
-                throw new Error('Category name is required');
-            }
-
-            // Remove MANAGER_ prefix if it exists, then add it back to ensure consistency
-            const cleanName = category.name.replace('MANAGER_', '');
-            const categoryData = {
-                name: cleanName, // Backend will add MANAGER_ prefix
-                description: category.description || "Manager Category"
-            };
-
-            console.log('Adding category with data:', categoryData);
+            // Format the category name - just convert to uppercase and replace spaces with underscores
+            // Don't add MANAGER_ prefix as it's added by the backend
+            const formattedName = categoryData.name.toUpperCase().replace(/\s+/g, '_');
             
-            const response = await axiosInstance.post('/addcategories', categoryData);
-            console.log('Add category response:', response);
-
-            // If the response indicates success
-            if (response.status === 200) {
-                // Wait a short moment before fetching updated categories
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Fetch updated categories
-                const updatedResponse = await adminService.getManagerRoles();
-                console.log('Updated categories after addition:', updatedResponse);
-
-                // Verify the new category exists
-                const newCategoryExists = updatedResponse.data.some(
-                    role => role.name === `MANAGER_${cleanName}`
-                );
-
-                if (!newCategoryExists) {
-                    console.warn('Added category not found in updated list');
-                }
-            }
-
-            return response;
-        } catch (error) {
-            console.error('Error in addCategory:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
+            const response = await axiosInstance.post('/addcategories', {
+                name: formattedName
             });
-            throw error;
+
+            if (response.status === 200 || response.status === 201) {
+                return {
+                    success: true,
+                    message: 'Category added successfully',
+                    data: response.data
+                };
+            } else {
+                throw new Error(response.data || 'Failed to add category');
+            }
+        } catch (error) {
+            console.error('Error in addCategory:', error);
+            if (error.response) {
+                // Handle specific error cases
+                if (error.response.status === 409) {
+                    throw new Error('This category already exists. Please use a different name.');
+                }
+                throw new Error(error.response.data || 'Failed to add category');
+            }
+            throw new Error('Network error while adding category');
         }
     },
 

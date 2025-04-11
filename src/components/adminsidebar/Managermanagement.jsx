@@ -39,19 +39,12 @@ import {
   CheckCircle as StatusIcon,
   People as CustomerIcon
 } from "@mui/icons-material";
-
 import { motion } from "framer-motion";
-import axios from "axios";
-
-const API_BASE_URL = 'http://localhost:8080/api'; // Update this to match your backend URL
-
-axios.defaults.baseURL = API_BASE_URL;
+import adminService from "../../services/adminService";
 
 const ManagerManagement = () => {
   const [managers, setManagers] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -79,77 +72,24 @@ const ManagerManagement = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get('/managers');
-        setManagers(response.data);
+        const response = await adminService.getAllManagers();
+        if (response && response.data) {
+          setManagers(response.data);
+          showSnackbar('Managers loaded successfully');
+        } else {
+          setManagers([]);
+          showSnackbar('No managers found', 'warning');
+        }
       } catch (error) {
         console.error('Error fetching managers:', error);
         setError('Failed to load managers. Please try again later.');
-        // Fallback data if API fails in development
-        if (process.env.NODE_ENV === 'development') {
-          setManagers([
-            {
-              id: 1,
-              name: "John Thompson",
-              email: "john.t@inventorysys.com",
-              department: "Electronics",
-              phone: "555-0123",
-              active: true
-            },
-            {
-              id: 2,
-              name: "Sarah Miller",
-              email: "sarah.m@inventorysys.com",
-              department: "Home Goods",
-              phone: "555-0124",
-              active: true
-            }
-          ]);
-        }
+        showSnackbar(error.message || 'Failed to load managers', 'error');
       } finally {
         setLoading(false);
       }
     };
 
     fetchManagers();
-  }, []);
-
-  // Fetch departments
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        setLoadingDepartments(true);
-        setError(null);
-        const response = await axios.get('/departments');
-        setDepartments(response.data);
-        
-        // Update form default department if not already set
-        if (!formData.department && response.data.length > 0) {
-          setFormData(prev => ({
-            ...prev,
-            department: response.data[0]
-          }));
-        }
-      } catch (error) {
-        console.error('Error fetching departments:', error);
-        setError('Failed to load departments. Please try again later.');
-        // Fallback data if API fails in development
-        if (process.env.NODE_ENV === 'development') {
-          const fallbackDepts = ["Electronics", "Home Goods", "Clothing", "Food & Beverage", "Sporting Goods"];
-          setDepartments(fallbackDepts);
-          
-          if (!formData.department) {
-            setFormData(prev => ({
-              ...prev,
-              department: fallbackDepts[0]
-            }));
-          }
-        }
-      } finally {
-        setLoadingDepartments(false);
-      }
-    };
-
-    fetchDepartments();
   }, []);
 
   const handleOpenDialog = (manager = null) => {
@@ -170,7 +110,7 @@ const ManagerManagement = () => {
       setFormData({
         name: "",
         email: "",
-        department: departments[0] || '',
+        department: "",
         phone: "",
         active: true
       });
@@ -221,47 +161,45 @@ const ManagerManagement = () => {
     try {
       if (editMode && currentManager) {
         // Update existing manager
-        const response = await axios.put(`/managers/${currentManager.id}`, formData);
+        const response = await adminService.updateManager({
+          ...formData,
+          email: currentManager.email // Keep original email for update
+        });
         
-        if (!response.data) throw new Error('No data received from server');
-        
-        const updatedManagers = managers.map(mgr => 
-          mgr.id === currentManager.id ? response.data : mgr
-        );
-        setManagers(updatedManagers);
-        showSnackbar('Manager updated successfully');
+        if (response && response.data) {
+          const updatedManagers = managers.map(mgr => 
+            mgr.email === currentManager.email ? response.data : mgr
+          );
+          setManagers(updatedManagers);
+          showSnackbar('Manager updated successfully');
+        }
       } else {
         // Add new manager
-        const avatar = formData.name.split(' ').map(n => n[0]).join('');
-        const newManagerData = {
-          ...formData,
-          avatar
-        };
+        const response = await adminService.addManager(formData);
         
-        const response = await axios.post('/managers', newManagerData);
-        
-        if (!response.data) throw new Error('No data received from server');
-        
-        setManagers([...managers, response.data]);
-        showSnackbar('Manager added successfully');
+        if (response && response.data) {
+          setManagers([...managers, response.data]);
+          showSnackbar('Manager added successfully');
+        }
       }
       handleClose();
     } catch (error) {
       console.error('Error saving manager:', error);
-      setError(error.response?.data?.message || 'Failed to save manager. Please try again.');
+      setError(error.message || 'Failed to save manager. Please try again.');
+      showSnackbar(error.message || 'Failed to save manager', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (email) => {
     try {
-      await axios.delete(`/managers/${id}`);
-      setManagers(managers.filter(mgr => mgr.id !== id));
+      await adminService.deleteManager(email);
+      setManagers(managers.filter(mgr => mgr.email !== email));
       showSnackbar('Manager deleted successfully');
     } catch (error) {
       console.error('Error deleting manager:', error);
-      showSnackbar('Failed to delete manager', 'error');
+      showSnackbar(error.message || 'Failed to delete manager', 'error');
     }
   };
 
@@ -375,7 +313,7 @@ const ManagerManagement = () => {
             <CircularProgress sx={{ color: 'primary.main' }} />
             <Typography sx={{ ml: 2, color: 'text.secondary' }}>Loading managers...</Typography>
           </Box>
-        ) :  !managers && managers.length !== 0 ? (
+        ) : managers.length === 0 ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', py: 8 }}>
             <ManagerIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
             <Typography sx={{ color: 'text.secondary', mb: 1 }}>No managers found</Typography>
@@ -396,87 +334,109 @@ const ManagerManagement = () => {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Manager</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Department</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Status</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {managers.map((manager) => (
-                <motion.tr
-                  key={manager.id}
-                  variants={itemVariants}
-                  component={TableRow}
-                  className="table-row-3d"
-                  sx={{ 
-                    '&:hover': { 
-                      backgroundColor: 'rgba(242, 242, 247, 0.5)' 
-                    } 
-                  }}
-                >
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar 
-                        sx={{ 
-                          backgroundColor: manager.active ? 'primary.light' : 'grey.300',
-                          color: manager.active ? 'primary.main' : 'text.secondary',
-                          fontWeight: 'bold',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                        }}
-                      >
-                        {manager.name.substring(0, 1)}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                          {manager.name}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <EmailIcon fontSize="small" color="action" />
-                            <Typography variant="caption" color="text.secondary">
-                              {manager.email}
-                            </Typography>
+                  <motion.tr
+                    key={manager.email}
+                    variants={itemVariants}
+                    component={TableRow}
+                    className="table-row-3d"
+                    sx={{ 
+                      '&:hover': { 
+                        backgroundColor: 'rgba(242, 242, 247, 0.5)' 
+                      } 
+                    }}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar 
+                          sx={{ 
+                            backgroundColor: manager.active ? 'primary.light' : 'grey.300',
+                            color: manager.active ? 'primary.main' : 'text.secondary',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                          }}
+                        >
+                          {manager.name.substring(0, 1)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                            {manager.name}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <EmailIcon fontSize="small" color="action" />
+                              <Typography variant="caption" color="text.secondary">
+                                {manager.email}
+                              </Typography>
+                            </Box>
+                            {manager.phone && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <PhoneIcon fontSize="small" color="action" />
+                                <Typography variant="caption" color="text.secondary">
+                                  {manager.phone}
+                                </Typography>
+                              </Box>
+                            )}
                           </Box>
-                          
                         </Box>
                       </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{manager.department}</Typography>
-                  </TableCell>
-                  
-                  <TableCell align="right">
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                      <Tooltip title="Edit Manager" arrow>
-                        <IconButton 
-                          size="small" 
-                          color="primary"
-                          onClick={() => handleOpenDialog(manager)}
-                          className="btn-3d"
-                          sx={{ 
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
-                          }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Manager" arrow>
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={() => handleDelete(manager.id)}
-                          className="btn-3d"
-                          sx={{ 
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                </motion.tr>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={manager.department}
+                        size="small"
+                        sx={{ 
+                          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                          color: 'primary.main'
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={manager.active ? 'Active' : 'Inactive'}
+                        size="small"
+                        color={manager.active ? 'success' : 'default'}
+                        icon={<StatusIcon />}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                        <Tooltip title="Edit Manager" arrow>
+                          <IconButton 
+                            size="small" 
+                            color="primary"
+                            onClick={() => handleOpenDialog(manager)}
+                            className="btn-3d"
+                            sx={{ 
+                              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                              '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Manager" arrow>
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleDelete(manager.email)}
+                            className="btn-3d"
+                            sx={{ 
+                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                              '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </motion.tr>
                 ))}
               </TableBody>
             </Table>
@@ -546,6 +506,7 @@ const ManagerManagement = () => {
                   className="input-3d"
                   variant="outlined"
                   required
+                  disabled={editMode}
                   sx={{ 
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
@@ -567,6 +528,27 @@ const ManagerManagement = () => {
                   onChange={handleChange}
                   className="input-3d"
                   variant="outlined"
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#6366f1',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Department"
+                  name="department"
+                  value={formData.department}
+                  onChange={handleChange}
+                  className="input-3d"
+                  variant="outlined"
                   required
                   sx={{ 
                     '& .MuiOutlinedInput-root': {
@@ -579,50 +561,18 @@ const ManagerManagement = () => {
                   }}
                 />
               </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl 
-                  fullWidth 
-                  margin="normal"
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#6366f1',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
-                >
-                  <InputLabel id="department-label">Department</InputLabel>
-                  <Select
-                    labelId="department-label"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleChange}
-                    label="Department"
-                    required
-                    disabled={loadingDepartments}
-                  >
-                    {loadingDepartments ? (
-                      <MenuItem value="" disabled>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <CircularProgress size={20} sx={{ mr: 1 }} />
-                          Loading departments...
-                        </Box>
-                      </MenuItem>
-                    ) : departments.length === 0 ? (
-                      <MenuItem value="" disabled>No departments available</MenuItem>
-                    ) : (
-                      departments.map((dept, index) => (
-                        <MenuItem key={index} value={dept}>{dept}</MenuItem>
-                      ))
-                    )}
-                  </Select>
-                </FormControl>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.active}
+                      onChange={handleSwitchChange}
+                      color="primary"
+                    />
+                  }
+                  label="Active Status"
+                />
               </Grid>
-
-              
             </Grid>
             
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
