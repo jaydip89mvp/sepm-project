@@ -58,117 +58,88 @@ axiosInstance.interceptors.response.use(
 );
 
 const adminService = {
-    // Get manager roles
+    // Get all manager roles
     getManagerRoles: async () => {
         try {
-            console.log('Fetching manager roles...');
             const response = await axiosInstance.get('/getmanagerroles');
-            console.log('Raw manager roles response:', response);
-            
-            // If the response is empty or invalid, return empty array
-            if (!response.data) {
-                console.warn('Empty response data received');
-                return { data: [] };
-            }
-
-            // If the response is a string message (like "Access is denied"), return empty array
-            if (typeof response.data === 'string') {
-                console.warn('String response received:', response.data);
-                return { data: [] };
-            }
-
-            // Ensure we have an array and filter for MANAGER_ roles
-            let roles = Array.isArray(response.data) ? response.data : [response.data];
-            roles = roles.filter(role => role && role.name && role.name.startsWith('MANAGER_'));
-            
-            console.log('Filtered manager roles:', roles);
-            return { data: roles };
+            return {
+                success: true,
+                data: response.data
+            };
         } catch (error) {
-            console.error('Error in getManagerRoles:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
-            });
-            throw error;
+            console.error('Error fetching manager roles:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch manager roles'
+            };
         }
     },
 
-    // Add new category
+    // Add category
     addCategory: async (category) => {
         try {
-            if (!category.name) {
-                throw new Error('Category name is required');
-            }
-
-            // Remove MANAGER_ prefix if it exists, then add it back to ensure consistency
-            const cleanName = category.name.replace('MANAGER_', '');
-            const categoryData = {
-                name: cleanName, // Backend will add MANAGER_ prefix
-                description: category.description || "Manager Category"
-            };
-
-            console.log('Adding category with data:', categoryData);
-            
-            const response = await axiosInstance.post('/addcategories', categoryData);
-            console.log('Add category response:', response);
-
-            // If the response indicates success
-            if (response.status === 200) {
-                // Wait a short moment before fetching updated categories
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Fetch updated categories
-                const updatedResponse = await adminService.getManagerRoles();
-                console.log('Updated categories after addition:', updatedResponse);
-
-                // Verify the new category exists
-                const newCategoryExists = updatedResponse.data.some(
-                    role => role.name === `MANAGER_${cleanName}`
-                );
-
-                if (!newCategoryExists) {
-                    console.warn('Added category not found in updated list');
-                }
-            }
-
-            return response;
-        } catch (error) {
-            console.error('Error in addCategory:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
+            // Send the name as is, backend will add MANAGER_ prefix
+            const response = await axiosInstance.post('/addcategories', {
+                name: category.name
             });
-            throw error;
+            return {
+                success: true,
+                data: response.data,
+                message: 'Category added successfully'
+            };
+        } catch (error) {
+            return handleError(error);
         }
     },
 
-    // Add new manager
+    // Add manager
     addManager: async (managerData) => {
         try {
-            const response = await axiosInstance.post('/addmanager', managerData);
-            return response;
+            const response = await axiosInstance.post('/addmanager', {
+                email: managerData.email,
+                password: managerData.password,
+                contact: managerData.contact,
+                active: managerData.active,
+                assigned: managerData.assigned // Full Role object
+            });
+            return {
+                success: true,
+                data: response.data,
+                message: 'Manager added successfully'
+            };
         } catch (error) {
-            throw error;
+            return handleError(error);
         }
     },
 
     // Update manager
     updateManager: async (managerData) => {
         try {
-            const response = await axiosInstance.put('/updatemanager', managerData);
-            return response;
+            const response = await axiosInstance.put('/updatemanager', {managerData});
+            return {
+                success: true,
+                data: response.data,
+                message: 'Manager updated successfully'
+            };
         } catch (error) {
-            throw error;
+            return handleError(error);
         }
     },
 
     // Get manager by email
     getManager: async (email) => {
         try {
-            const response = await axiosInstance.get(`/getmanager?email=${email}`);
-            return response;
+            const response = await axiosInstance.post('/getmanager', { email });
+            return {
+                success: true,
+                data: response.data
+            };
         } catch (error) {
-            throw error;
+            console.error('Error fetching manager:', error);
+            return {
+                success: false,
+                message: error.response?.data || 'Failed to fetch manager'
+            };
         }
     },
 
@@ -185,7 +156,7 @@ const adminService = {
     // Delete manager
     deleteManager: async (email) => {
         try {
-            const response = await axiosInstance.put(`/deletemanager?email=${email}`);
+            const response = await axiosInstance.put(`/deletemanager`,{email});
             return response;
         } catch (error) {
             throw error;
@@ -234,15 +205,23 @@ const adminService = {
 
     generateReport: async (month, year) => {
         try {
-            const response = await axios.post(`${API_URL}/admin/generatereport`, {
+            const response = await axiosInstance.post('/generatereport', {
                 month: parseInt(month),
                 year: parseInt(year)
             });
-            return {
-                success: true,
-                data: response.data,
-                message: "Report generated successfully"
-            };
+            
+            if (response.data) {
+                return {
+                    success: true,
+                    data: response.data,
+                    message: "Report generated successfully"
+                };
+            } else {
+                return {
+                    success: false,
+                    message: "No data received from server"
+                };
+            }
         } catch (error) {
             console.error("Error generating report:", error);
             return {
@@ -272,9 +251,7 @@ const adminService = {
     // Get supplier by name
     getSupplierByName: async (name) => {
         try {
-            const response = await axiosInstance.get('/getsupplierbyname', {
-                data: { name }
-            });
+            const response = await axiosInstance.post('/getsupplierbyname', {name});
             return {
                 success: true,
                 data: response.data
@@ -309,6 +286,7 @@ const adminService = {
     // Update supplier
     updateSupplier: async (supplierData) => {
         try {
+            
             const response = await axiosInstance.put('/updatesupplier', supplierData);
             return {
                 success: true,

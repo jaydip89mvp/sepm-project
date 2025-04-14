@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -16,121 +16,75 @@ import {
   Typography,
   IconButton,
   Tooltip,
-  Chip,
+  CircularProgress,
+  Snackbar,
+  Alert,
   Grid,
-  Avatar,
-  Select,
-  MenuItem,
   FormControl,
   InputLabel,
-  Switch,
-  FormControlLabel,
-  CircularProgress,
-  Alert,
-  Snackbar
-} from "@mui/material";
-import { 
-  Add as AddIcon, 
-  Edit as EditIcon, 
-  Delete as DeleteIcon,
-  SupervisorAccount as ManagerIcon,
-  Phone as PhoneIcon,
-  Email as EmailIcon,
-  CheckCircle as StatusIcon,
-  People as CustomerIcon
-} from "@mui/icons-material";
+  Select,
+  MenuItem,
+  Chip
+} from '@mui/material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
+import employeeService from '../services/employeeService';
 
-import { motion } from "framer-motion";
-import adminService from '../../services/adminService';
-
-const ManagerManagement = () => {
-  const [managers, setManagers] = useState([]);
-  const [departments, setDepartments] = useState([]);
+const ProductsTable = () => {
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingDepartments, setLoadingDepartments] = useState(true);
-  const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [currentManager, setCurrentManager] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    department: "",
-    phone: "",
+    name: '',
+    subCategory: '',
+    stockLevel: 0,
+    reorderLevel: 0,
     active: true
   });
 
-  const showSnackbar = (message, severity = 'success') => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleSnackbarClose = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
-
-  // Fetch managers
   useEffect(() => {
-    const fetchManagers = async () => {
-      try {
-        setLoading(true);
-        const response = await adminService.getAllManagers();
-        setManagers(response.data);
-      } catch (error) {
-        console.error('Error fetching managers:', error);
-        setError('Failed to fetch managers');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchManagers();
+    fetchProducts();
+    fetchCategories();
   }, []);
 
-  // Fetch departments
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        const response = await adminService.getManagerRoles();
-        // Store the full role objects
-        setDepartments(response.data);
-        
-        // Set default department if not already set
-        if (!formData.department && response.data.length > 0) {
-          setFormData(prev => ({
-            ...prev,
-            department: response.data[0].name.replace('MANAGER_', '')
-          }));
-        }
-      } catch (error) {
-        console.error('Error fetching departments:', error);
-        setError('Failed to fetch departments');
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const response = await employeeService.getAllProducts();
+      if (response.success) {
+        setProducts(response.data || []);
+      } else {
+        showSnackbar(response.message || 'Failed to fetch products', 'error');
       }
-    };
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      showSnackbar('Error fetching products', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchDepartments();
-  }, []);
+  
 
-  const handleOpenDialog = (manager = null) => {
-    setError(null);
-    if (manager) {
+  const handleOpenDialog = (product = null) => {
+    if (product) {
       setEditMode(true);
-      setCurrentManager(manager);
       setFormData({
-        name: manager.name,
-        email: manager.email,
-        department: manager.department,
-        phone: manager.phone || '',
-        active: manager.active
+        name: product.name,
+        subCategory: product.subCategory || '',
+        stockLevel: product.stockLevel || 0,
+        reorderLevel: product.reorderLevel || 0,
+        active: product.active !== undefined ? product.active : true
       });
     } else {
       setEditMode(false);
-      setCurrentManager(null);
       setFormData({
-        name: "",
-        email: "",
-        department: departments[0]?.name.replace('MANAGER_', '') || '',
-        phone: "",
+        name: '',
+        subCategory: '',
+        stockLevel: 0,
+        reorderLevel: 0,
         active: true
       });
     }
@@ -139,498 +93,198 @@ const ManagerManagement = () => {
 
   const handleClose = () => {
     setOpen(false);
-    setError(null);
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value
-    });
-  };
-
-  const handleSwitchChange = (e) => {
-    setFormData({
-      ...formData,
-      active: e.target.checked
-    });
-  };
-
-  const validateForm = () => {
-    if (!formData.name.trim()) return 'Name is required';
-    if (!formData.email.trim()) return 'Email is required';
-    if (!formData.department) return 'Department is required';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
-    return null;
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // Find the selected role object
-      const selectedRole = departments.find(role => 
-        role.name === `MANAGER_${formData.department}`
-      );
-      
-      if (!selectedRole) {
-        setError('Selected department not found');
-        setLoading(false);
-        return;
-      }
-      
-      // Prepare manager data according to the User model
-      const managerData = {
-        email: formData.email,
-        contact: formData.phone,
-        active: formData.active,
-        // Add the assigned role object
-        assigned: selectedRole
-      };
-
-      if (editMode && currentManager) {
-        await adminService.updateManager(managerData);
-        showSnackbar('Manager updated successfully');
+      let response;
+      if (editMode) {
+        response = await employeeService.updateProduct(formData);
       } else {
-        // For new managers, we need to set a default password
-        managerData.password = "defaultPassword123"; // This should be changed by the user later
-        await adminService.addManager(managerData);
-        showSnackbar('Manager added successfully');
+        response = await employeeService.createProduct(formData);
       }
 
-      handleClose();
-      fetchManagers();
+      if (response.success) {
+        showSnackbar(response.message || (editMode ? 'Product updated successfully' : 'Product added successfully'));
+        fetchProducts();
+        handleClose();
+      } else {
+        showSnackbar(response.message || 'Operation failed', 'error');
+      }
     } catch (error) {
-      console.error('Error saving manager:', error);
-      setError(error.response?.data?.message || 'Failed to save manager');
+      console.error('Error saving product:', error);
+      showSnackbar('Error saving product', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (email) => {
-    if (window.confirm('Are you sure you want to deactivate this manager?')) {
+  const handleDelete = async (productId) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await adminService.deleteManager(email);
-        showSnackbar('Manager deactivated successfully');
-        fetchManagers();
+        const response = await employeeService.deleteProduct(productId);
+        if (response.success) {
+          showSnackbar('Product deleted successfully');
+          fetchProducts();
+        } else {
+          showSnackbar(response.message || 'Failed to delete product', 'error');
+        }
       } catch (error) {
-        console.error('Error deactivating manager:', error);
-        setError('Failed to deactivate manager');
+        console.error('Error deleting product:', error);
+        showSnackbar('Error deleting product', 'error');
       }
     }
   };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
   };
 
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-        damping: 12
-      }
-    }
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
-
-  if (loading && managers.length === 0) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
-    <Box className="card-3d-soft" sx={{ p: 4, borderRadius: 3, backgroundColor: 'white' }}>
-      <Box 
-        className="section-title" 
-        sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 2, 
-          mb: 4 
-        }}
+    <Box sx={{ p: 4 }}>
+      <Typography variant="h4" sx={{ mb: 3 }}>
+        Product Management
+      </Typography>
+      <Button
+        variant="contained"
+        startIcon={<AddIcon />}
+        onClick={() => handleOpenDialog()}
+        sx={{ mb: 3 }}
       >
-        <ManagerIcon 
-          sx={{ 
-            fontSize: 32, 
-            color: 'primary.main',
-            backgroundColor: 'primary.light',
-            p: 1,
-            borderRadius: '50%',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-          }} 
-        />
-        <Typography 
-          variant="h4" 
-          className="section-title"
-          sx={{ 
-            fontWeight: 'bold',
-            background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}
-        >
-          Manager Management
-        </Typography>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
+        Add New Product
+      </Button>
+      {loading ? (
+        <CircularProgress />
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>SubCategory</TableCell>
+                <TableCell>Stock Level</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {products.map((product) => (
+                <TableRow key={product.productId}>
+                  <TableCell>{product.name}</TableCell>
+                  <TableCell>{product.subCategory}</TableCell>
+                  <TableCell>
+                    {product.stockLevel}
+                    <Chip
+                      size="small"
+                      label={product.stockLevel <= product.reorderLevel ? 'Low Stock' : 'In Stock'}
+                      color={product.stockLevel <= product.reorderLevel ? 'warning' : 'success'}
+                      sx={{ ml: 1 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={product.active ? 'Active' : 'Inactive'}
+                      color={product.active ? 'success' : 'error'}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip title="Edit">
+                      <IconButton onClick={() => handleOpenDialog(product)}>
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton onClick={() => handleDelete(product.productId)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
-      <motion.div
-        className="glow-effect"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <Button 
-          variant="contained" 
-          startIcon={<AddIcon />} 
-          className="btn-3d btn-3d-primary"
-          onClick={() => handleOpenDialog()}
-          sx={{ 
-            mb: 3,
-            background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
-            boxShadow: '0 6px 12px rgba(99, 102, 241, 0.3)',
-            borderRadius: 2,
-            textTransform: 'none',
-            fontWeight: 'bold',
-            py: 1.2,
-            px: 3
-          }}
-        >
-          Add New Manager
-        </Button>
-      </motion.div>
-
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="data-table-3d"
-        style={{ borderRadius: '1rem' }}
-      >
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
-            <CircularProgress sx={{ color: 'primary.main' }} />
-            <Typography sx={{ ml: 2, color: 'text.secondary' }}>Loading managers...</Typography>
-          </Box>
-        ) :  !managers && managers.length !== 0 ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', py: 8 }}>
-            <ManagerIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-            <Typography sx={{ color: 'text.secondary', mb: 1 }}>No managers found</Typography>
-            <Button 
-              variant="outlined" 
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog()}
-              sx={{ mt: 2 }}
-            >
-              Add your first manager
-            </Button>
-          </Box>
-        ) : (
-          <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, overflow: 'hidden' }}>
-            <Table>
-              <TableHead sx={{ backgroundColor: 'rgba(242, 242, 247, 0.8)' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Manager</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Department</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {managers.map((manager) => (
-                <motion.tr
-                  key={manager.id}
-                  variants={itemVariants}
-                  component={TableRow}
-                  className="table-row-3d"
-                  sx={{ 
-                    '&:hover': { 
-                      backgroundColor: 'rgba(242, 242, 247, 0.5)' 
-                    } 
-                  }}
-                >
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar 
-                        sx={{ 
-                          backgroundColor: manager.active ? 'primary.light' : 'grey.300',
-                          color: manager.active ? 'primary.main' : 'text.secondary',
-                          fontWeight: 'bold',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                        }}
-                      >
-                        {manager.name.substring(0, 1)}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                          {manager.name}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <EmailIcon fontSize="small" color="action" />
-                            <Typography variant="caption" color="text.secondary">
-                              {manager.email}
-                            </Typography>
-                          </Box>
-                          
-                        </Box>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{manager.department}</Typography>
-                  </TableCell>
-                  
-                  <TableCell align="right">
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                      <Tooltip title="Edit Manager" arrow>
-                        <IconButton 
-                          size="small" 
-                          color="primary"
-                          onClick={() => handleOpenDialog(manager)}
-                          className="btn-3d"
-                          sx={{ 
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
-                          }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Manager" arrow>
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={() => handleDelete(manager.email)}
-                          className="btn-3d"
-                          sx={{ 
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                </motion.tr>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </motion.div>
-
-      <Dialog 
-        open={open} 
-        onClose={handleClose}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          className: 'card-3d',
-          sx: { 
-            borderRadius: 3,
-            backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.9), rgba(255,255,255,0.8))',
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1), 0 1px 5px rgba(0,0,0,0.03), 0 0 0 1px rgba(255,255,255,0.4)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          pb: 1, 
-          background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          fontWeight: 'bold',
-          fontSize: '1.5rem'
-        }}>
-          {editMode ? 'Edit Manager' : 'Add New Manager'}
-        </DialogTitle>
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>{editMode ? 'Edit Product' : 'Add Product'}</DialogTitle>
         <DialogContent>
-          <Box component="form" onSubmit={handleSubmit} sx={{ pt: 1 }}>
+          <Box component="form" onSubmit={handleSubmit}>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  margin="normal"
-                  label="Manager Name"
+                  label="Name"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="input-3d"
-                  variant="outlined"
                   required
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#6366f1',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  margin="normal"
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
+                  label="Subcategory"
+                  name="subCategory"
+                  value={formData.subCategory}
                   onChange={handleChange}
-                  className="input-3d"
-                  variant="outlined"
-                  required
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#6366f1',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  margin="normal"
-                  label="Phone"
-                  name="phone"
-                  value={formData.phone}
+                  label="Description"
+                  name="description"
+                  value={formData.description}
                   onChange={handleChange}
-                  className="input-3d"
-                  variant="outlined"
-                  required
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#6366f1',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
+                  multiline
+                  rows={2}
                 />
               </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl 
-                  fullWidth 
-                  margin="normal"
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#6366f1',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
-                >
-                  <InputLabel id="department-label">Department</InputLabel>
-                  <Select
-                    labelId="department-label"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleChange}
-                    label="Department"
-                    required
-                    disabled={loadingDepartments}
-                  >
-                    {loadingDepartments ? (
-                      <MenuItem value="" disabled>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <CircularProgress size={20} sx={{ mr: 1 }} />
-                          Loading departments...
-                        </Box>
-                      </MenuItem>
-                    ) : departments.length === 0 ? (
-                      <MenuItem value="" disabled>No departments available</MenuItem>
-                    ) : (
-                      departments.map((role, index) => (
-                        <MenuItem key={index} value={role.name.replace('MANAGER_', '')}>{role.name.replace('MANAGER_', '')}</MenuItem>
-                      ))
-                    )}
-                  </Select>
-                </FormControl>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Stock Level"
+                  name="stockLevel"
+                  type="number"
+                  value={formData.stockLevel}
+                  onChange={handleChange}
+                  required
+                />
               </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.active}
-                      onChange={handleSwitchChange}
-                      name="active"
-                    />
-                  }
-                  label="Active"
-                  sx={{ mt: 2 }}
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Reorder Level"
+                  name="reorderLevel"
+                  type="number"
+                  value={formData.reorderLevel}
+                  onChange={handleChange}
+                  required
                 />
               </Grid>
             </Grid>
-            
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
-              <Button 
-                onClick={handleClose}
-                variant="outlined"
-                className="btn-3d"
-                sx={{ 
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  borderColor: 'rgba(99, 102, 241, 0.5)',
-                  color: '#6366f1',
-                  '&:hover': {
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.05)'
-                  }
-                }}
-              >
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button onClick={handleClose} sx={{ mr: 2 }}>
                 Cancel
               </Button>
-              <Button 
-                variant="contained" 
-                type="submit"
-                className="btn-3d btn-3d-primary"
-                sx={{ 
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 'bold',
-                  background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
-                  boxShadow: '0 4px 10px rgba(99, 102, 241, 0.3)'
-                }}
-              >
-                {editMode ? 'Update Manager' : 'Add Manager'}
+              <Button type="submit" variant="contained">
+                {editMode ? 'Update' : 'Add'}
               </Button>
             </Box>
           </Box>
@@ -640,10 +294,9 @@ const ManagerManagement = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        onClose={handleCloseSnackbar}
       >
-        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
           {snackbar.message}
         </Alert>
       </Snackbar>
@@ -651,4 +304,4 @@ const ManagerManagement = () => {
   );
 };
 
-export default ManagerManagement;
+export default ProductsTable;

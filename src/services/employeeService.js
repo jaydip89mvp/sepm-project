@@ -15,8 +15,13 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
     config => {
         const token = localStorage.getItem('token');
+        console.log('Current token (Basic Auth string):', token);
         if (token) {
+            // Use Basic Auth scheme
             config.headers.Authorization = `Basic ${token}`;
+            console.log('Request headers with Basic Auth:', config.headers);
+        } else {
+            console.warn('No token found in localStorage for Basic Auth');
         }
         return config;
     },
@@ -29,10 +34,19 @@ axiosInstance.interceptors.request.use(
 // Add response interceptor for error handling
 axiosInstance.interceptors.response.use(
     response => {
+        console.log('Response interceptor:', {
+            url: response.config.url,
+            status: response.status,
+            data: response.data
+        });
         return response;
     },
     error => {
-        console.error('Response interceptor error:', error);
+        console.error('Response interceptor error:', {
+            url: error.config?.url,
+            status: error.response?.status,
+            data: error.response?.data
+        });
         if (error.response && error.response.status === 401) {
             if (!window.location.pathname.includes('/login')) {
                 localStorage.removeItem('token');
@@ -42,16 +56,6 @@ axiosInstance.interceptors.response.use(
         return Promise.reject(error);
     }
 );
-
-// Helper function to handle API errors
-const handleError = (error) => {
-    console.error('API Error:', error);
-    return {
-        success: false,
-        message: error.response?.data || error.message || 'An error occurred',
-        status: error.response?.status || 500
-    };
-};
 
 const employeeService = {
     // Get product categories for employee
@@ -68,7 +72,7 @@ const employeeService = {
     },
 
     // Get product by ID
-    getProduct: async (productId) => {
+    getproduct: async (productId) => {
         try {
             const response = await axiosInstance.get('/getproduct', {
                 data: { id: productId }
@@ -81,7 +85,18 @@ const employeeService = {
             return handleError(error);
         }
     },
-
+  
+    getallproducts: async () => {
+        try {
+            const response = await axiosInstance.get('/getallproducts');
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error) {
+            return handleError(error);
+        }
+    },
     // Get low stock products
     getLowStockProducts: async () => {
         try {
@@ -140,9 +155,7 @@ const employeeService = {
             const formattedProduct = {
                 productId: productData.productId,
                 name: productData.name,
-                mainCategory: productData.mainCategory,
                 subCategory: productData.subCategory || '',
-                description: productData.description || '',
                 stockLevel: parseInt(productData.stockLevel) || 0,
                 reorderLevel: parseInt(productData.reorderLevel) || 0,
                 active: productData.active !== undefined ? productData.active : true

@@ -43,7 +43,7 @@ const SupplierManagement = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [currentSupplier, setCurrentSupplier] = useState(null);
+  const [name, setCurrentSupplier] = useState("");
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -53,10 +53,7 @@ const SupplierManagement = () => {
   const [formData, setFormData] = useState({
     name: "",
     contactEmail: "",
-    contactPhone: "",
-    address: "",
-    active: true,
-    productTypes: []
+    address: ""
   });
 
   useEffect(() => {
@@ -95,14 +92,11 @@ const SupplierManagement = () => {
   const handleOpenDialog = (supplier = null) => {
     if (supplier) {
       setEditMode(true);
-      setCurrentSupplier(supplier);
+      setCurrentSupplier(supplier.name);
       setFormData({
         name: supplier.name,
         contactEmail: supplier.contactEmail,
-        contactPhone: supplier.contactPhone,
-        address: supplier.address,
-        active: supplier.active,
-        productTypes: supplier.productTypes || []
+        address: supplier.address
       });
     } else {
       setEditMode(false);
@@ -110,10 +104,7 @@ const SupplierManagement = () => {
       setFormData({
         name: "",
         contactEmail: "",
-        contactPhone: "",
-        address: "",
-        active: true,
-        productTypes: []
+        address: ""
       });
     }
     setOpen(true);
@@ -127,43 +118,49 @@ const SupplierManagement = () => {
     const { name, value, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: name === 'active' ? checked : value
+      [name]: value
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
-    try {
-      let response;
-      if (editMode && currentSupplier) {
-        // Update existing supplier
-        const supplierData = {
-          ...formData,
-          supplierId: currentSupplier.supplierId
-        };
-        response = await adminService.updateSupplier(supplierData);
-      } else {
-        // Add new supplier
-        response = await adminService.addSupplier(formData);
-      }
-      
-      if (response.success) {
-        showSnackbar(response.message || (editMode ? 'Supplier updated successfully' : 'Supplier added successfully'));
-        fetchSuppliers();
-        handleClose();
-      } else {
-        showSnackbar(response.message || 'Operation failed', 'error');
-      }
-    } catch (error) {
-      console.error('Error saving supplier:', error);
-      showSnackbar('Error saving supplier', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
+    try {
+        let response;
+        if (editMode&&name!="") {
+            // Fetch supplier by name
+            console.log(name)
+            const fetchedSupplier = await adminService.getSupplierByName(name);
+            if (fetchedSupplier.success) {
+                const updatedSupplier = {
+                    ...fetchedSupplier.data,
+                    ...formData, // Update fields
+                };
+                response = await adminService.updateSupplier(updatedSupplier);
+            } else {
+                showSnackbar('Failed to fetch supplier for update', 'error');
+                return;
+            }
+        } else {
+            // Add new supplier
+            response = await adminService.addSupplier(formData);
+        }
+
+        if (response.success) {
+            showSnackbar(response.message || (editMode ? 'Supplier updated successfully' : 'Supplier added successfully'));
+            fetchSuppliers();
+            handleClose();
+        } else {
+            showSnackbar(response.message || 'Operation failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving supplier:', error);
+        showSnackbar('Error saving supplier', 'error');
+    } finally {
+        setLoading(false);
+    }
+};
   const handleDelete = async (supplierId) => {
     if (!window.confirm('Are you sure you want to deactivate this supplier?')) {
       return;
@@ -183,30 +180,6 @@ const SupplierManagement = () => {
       showSnackbar('Error deactivating supplier', 'error');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-        damping: 12
-      }
     }
   };
 
@@ -275,135 +248,111 @@ const SupplierManagement = () => {
           <CircularProgress />
         </Box>
       ) : (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="data-table-3d"
-          style={{ borderRadius: '1rem' }}
-        >
-          <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, overflow: 'hidden' }}>
-            <Table>
-              <TableHead sx={{ backgroundColor: 'rgba(242, 242, 247, 0.8)' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Supplier</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Contact</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Status</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {suppliers.map((supplier) => (
-                  <motion.tr
-                    key={supplier.supplierId}
-                    variants={itemVariants}
-                    component={TableRow}
-                    className="table-row-3d"
-                    sx={{ 
-                      '&:hover': { 
-                        backgroundColor: 'rgba(242, 242, 247, 0.5)' 
-                      } 
-                    }}
-                  >
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Avatar 
+        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+          <Table>
+            <TableHead sx={{ backgroundColor: 'rgba(242, 242, 247, 0.8)' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Supplier</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Contact</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {suppliers.map((supplier) => (
+                <TableRow
+                  key={supplier.supplierId}
+                  sx={{ 
+                    '&:hover': { 
+                      backgroundColor: 'rgba(242, 242, 247, 0.5)' 
+                    } 
+                  }}
+                >
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Avatar 
+                        sx={{ 
+                          backgroundColor: 'primary.light',
+                          color: 'primary.main',
+                          fontWeight: 'bold',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                        }}
+                      >
+                        {supplier.name.substring(0, 1)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          {supplier.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {supplier.address}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <EmailIcon fontSize="small" color="action" />
+                        <Typography variant="body2">
+                          {supplier.contactEmail}
+                        </Typography>
+                      </Box>
+                      
+                    </Box>
+                  </TableCell>
+                  
+                  <TableCell align="right">
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                      <Tooltip title="Edit Supplier" arrow>
+                        <IconButton 
+                          size="small" 
+                          color="primary"
+                          onClick={() => handleOpenDialog(supplier)}
+                          className="btn-3d"
                           sx={{ 
-                            backgroundColor: 'primary.light',
-                            color: 'primary.main',
-                            fontWeight: 'bold',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
                           }}
                         >
-                          {supplier.name.substring(0, 1)}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                            {supplier.name}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {supplier.address}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <EmailIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
-                            {supplier.contactEmail}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <PhoneIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
-                            {supplier.contactPhone}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={supplier.active ? "Active" : "Inactive"} 
-                        color={supplier.active ? "success" : "error"}
-                        size="small"
-                        icon={supplier.active ? <CheckIcon /> : <CloseIcon />}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                        <Tooltip title="Edit Supplier" arrow>
-                          <IconButton 
-                            size="small" 
-                            color="primary"
-                            onClick={() => handleOpenDialog(supplier)}
-                            className="btn-3d"
-                            sx={{ 
-                              backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                              '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={supplier.active ? "Deactivate Supplier" : "Activate Supplier"} arrow>
-                          <IconButton 
-                            size="small" 
-                            color={supplier.active ? "error" : "success"}
-                            onClick={() => handleDelete(supplier.supplierId)}
-                            className="btn-3d"
-                            sx={{ 
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={supplier.active ? "Deactivate Supplier" : "Activate Supplier"} arrow>
+                        <IconButton 
+                          size="small" 
+                          color={supplier.active ? "error" : "success"}
+                          onClick={() => handleDelete(supplier.supplierId)}
+                          className="btn-3d"
+                          sx={{ 
+                            backgroundColor: supplier.active 
+                              ? 'rgba(239, 68, 68, 0.1)' 
+                              : 'rgba(34, 197, 94, 0.1)',
+                            '&:hover': { 
                               backgroundColor: supplier.active 
-                                ? 'rgba(239, 68, 68, 0.1)' 
-                                : 'rgba(34, 197, 94, 0.1)',
-                              '&:hover': { 
-                                backgroundColor: supplier.active 
-                                  ? 'rgba(239, 68, 68, 0.2)' 
-                                  : 'rgba(34, 197, 94, 0.2)' 
-                              }
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </motion.tr>
-                ))}
-                {suppliers.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
-                      <Typography variant="body1" color="text.secondary">
-                        No suppliers found
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </motion.div>
+                                ? 'rgba(239, 68, 68, 0.2)' 
+                                : 'rgba(34, 197, 94, 0.2)' 
+                            }
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {suppliers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No suppliers found
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
       <Dialog 
@@ -482,28 +431,6 @@ const SupplierManagement = () => {
                 <TextField
                   fullWidth
                   margin="normal"
-                  label="Contact Phone"
-                  name="contactPhone"
-                  value={formData.contactPhone}
-                  onChange={handleChange}
-                  className="input-3d"
-                  variant="outlined"
-                  required
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#6366f1',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  margin="normal"
                   label="Address"
                   name="address"
                   value={formData.address}
@@ -520,19 +447,6 @@ const SupplierManagement = () => {
                       }
                     }
                   }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.active}
-                      onChange={handleChange}
-                      name="active"
-                      color="primary"
-                    />
-                  }
-                  label="Active"
                 />
               </Grid>
             </Grid>

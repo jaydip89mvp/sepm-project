@@ -163,6 +163,12 @@ const Report = () => {
         </Button>
       </Box>
 
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         {reportData && (
           <Box sx={{ mt: 4 }}>
             <Divider sx={{ my: 2 }} />
@@ -178,7 +184,7 @@ const Report = () => {
                       Total Orders
                     </Typography>
                     <Typography variant="h5">
-                      {reportData.ordersTotal || 0}
+                      {reportData.totalOrders || 0}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -190,7 +196,7 @@ const Report = () => {
                       Total Payments
                     </Typography>
                     <Typography variant="h5">
-                      {formatCurrency(reportData.paymentsTotal || 0)}
+                      {formatCurrency(reportData.totalPayments || 0)}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -199,10 +205,10 @@ const Report = () => {
                 <Card elevation={2}>
                   <CardContent>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Customer Orders
+                      New Customers
                     </Typography>
                     <Typography variant="h5">
-                      {reportData.ordersCustomer || 0}
+                      {reportData.newCustomers || 0}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -211,10 +217,10 @@ const Report = () => {
                 <Card elevation={2}>
                   <CardContent>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Supplier Orders
+                      New Suppliers
                     </Typography>
                     <Typography variant="h5">
-                      {reportData.ordersSupplier || 0}
+                      {reportData.newSuppliers || 0}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -223,85 +229,31 @@ const Report = () => {
 
             <Box sx={{ mt: 4 }}>
               <Typography variant="h6" gutterBottom>
-                New Customers ({reportData.newCustomers?.length || 0})
-              </Typography>
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Customer Name</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {reportData.newCustomers && reportData.newCustomers.length > 0 ? (
-                      reportData.newCustomers.map((customer, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{customer}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell>No new customers</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="h6" gutterBottom>
-                New Suppliers ({reportData.newSuppliers?.length || 0})
-              </Typography>
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Supplier Name</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {reportData.newSuppliers && reportData.newSuppliers.length > 0 ? (
-                      reportData.newSuppliers.map((supplier, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{supplier}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell>No new suppliers</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="h6" gutterBottom>
                 Customer Payments
-        </Typography>
+              </Typography>
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Customer</TableCell>
-                      <TableCell align="right">Orders</TableCell>
                       <TableCell align="right">Amount</TableCell>
+                      <TableCell align="right">Date</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {reportData.customerPaymentsMap && Object.entries(reportData.customerPaymentsMap).length > 0 ? (
-                      Object.entries(reportData.customerPaymentsMap).map(([customer, data], index) => (
-                        <TableRow key={index}>
-                          <TableCell>{customer}</TableCell>
-                          <TableCell align="right">{data.second.first}</TableCell>
-                          <TableCell align="right">{formatCurrency(data.second.second)}</TableCell>
+                    {reportData.customerPayments?.length > 0 ? (
+                      reportData.customerPayments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>{payment.customerName}</TableCell>
+                          <TableCell align="right">{formatCurrency(payment.amount)}</TableCell>
+                          <TableCell align="right">{new Date(payment.date).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={3}>No customer payments data</TableCell>
+                        <TableCell colSpan={3} align="center">
+                          No customer payments found
+                        </TableCell>
                       </TableRow>
                     )}
                   </TableBody>
@@ -312,28 +264,30 @@ const Report = () => {
             <Box sx={{ mt: 4 }}>
               <Typography variant="h6" gutterBottom>
                 Supplier Payments
-        </Typography>
+              </Typography>
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Supplier</TableCell>
-                      <TableCell align="right">Orders</TableCell>
                       <TableCell align="right">Amount</TableCell>
+                      <TableCell align="right">Date</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {reportData.supplierPaymentsMap && Object.entries(reportData.supplierPaymentsMap).length > 0 ? (
-                      Object.entries(reportData.supplierPaymentsMap).map(([supplier, data], index) => (
-                        <TableRow key={index}>
-                          <TableCell>{supplier}</TableCell>
-                          <TableCell align="right">{data.second.first}</TableCell>
-                          <TableCell align="right">{formatCurrency(data.second.second)}</TableCell>
+                    {reportData.supplierPayments?.length > 0 ? (
+                      reportData.supplierPayments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>{payment.supplierName}</TableCell>
+                          <TableCell align="right">{formatCurrency(payment.amount)}</TableCell>
+                          <TableCell align="right">{new Date(payment.date).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={3}>No supplier payments data</TableCell>
+                        <TableCell colSpan={3} align="center">
+                          No supplier payments found
+                        </TableCell>
                       </TableRow>
                     )}
                   </TableBody>
@@ -341,7 +295,7 @@ const Report = () => {
               </TableContainer>
             </Box>
           </Box>
-      )}
+        )}
     </Paper>
 
       <Snackbar

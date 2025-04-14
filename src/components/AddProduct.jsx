@@ -15,9 +15,7 @@ const AddProduct = () => {
   const [categories, setCategories] = useState([]);
   const [product, setProduct] = useState({
     name: '',
-    mainCategory: '',
     subCategory: '',
-    description: '',
     stockLevel: 0,
     reorderLevel: 0,
     active: true
@@ -30,28 +28,12 @@ const AddProduct = () => {
   });
 
   useEffect(() => {
-    fetchCategories();
     if (productId) {
       fetchProduct();
     }
   }, [productId]);
 
-  const fetchCategories = async () => {
-    setLoading(true);
-    try {
-      const response = await employeeService.getProductCategories();
-      if (response.success) {
-        setCategories(response.data);
-      } else {
-        showSnackbar(response.message || 'Failed to fetch categories', 'error');
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      showSnackbar('Error fetching categories', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   const fetchProduct = async () => {
     setLoading(true);
@@ -86,9 +68,6 @@ const AddProduct = () => {
     if (!product.name.trim()) {
       newErrors.name = 'Product name is required';
     }
-    if (!product.mainCategory) {
-      newErrors.mainCategory = 'Category is required';
-    }
     if (product.stockLevel < 0) {
       newErrors.stockLevel = 'Stock level cannot be negative';
     }
@@ -122,7 +101,6 @@ const AddProduct = () => {
 
       if (response.success) {
         showSnackbar(response.message || (productId ? 'Product updated successfully' : 'Product created successfully'));
-        setTimeout(() => navigate('/products'), 1500);
       } else {
         showSnackbar(response.message || 'Operation failed', 'error');
       }
@@ -135,16 +113,13 @@ const AddProduct = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this product?')) {
-      return;
-    }
+    
 
     setLoading(true);
     try {
       const response = await employeeService.deleteProduct(productId);
       if (response.success) {
         showSnackbar(response.message || 'Product deleted successfully');
-        setTimeout(() => navigate('/products'), 1500);
       } else {
         showSnackbar(response.message || 'Failed to delete product', 'error');
       }
@@ -197,26 +172,6 @@ const AddProduct = () => {
                 }}
               />
               
-              <FormControl fullWidth error={!!errors.mainCategory} required>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  name="mainCategory"
-                  value={product.mainCategory}
-                  onChange={handleChange}
-                  label="Category"
-                >
-                  {categories.map((category) => (
-                    <MenuItem key={category} value={category}>
-                      {category}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {errors.mainCategory && (
-                  <Typography variant="caption" color="error">
-                    {errors.mainCategory}
-                  </Typography>
-                )}
-              </FormControl>
               
               <TextField
                 fullWidth
@@ -226,15 +181,6 @@ const AddProduct = () => {
                 onChange={handleChange}
               />
               
-              <TextField
-                fullWidth
-                name="description"
-                label="Description"
-                value={product.description}
-                onChange={handleChange}
-                multiline
-                rows={2}
-              />
               
               <TextField
                 fullWidth

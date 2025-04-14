@@ -18,7 +18,7 @@ import {
   Snackbar,
   Alert
 } from '@mui/material';
-import { Edit, Delete, Save, Cancel, Search, CheckCircle, Warning } from '@mui/icons-material';
+import { Edit, Delete, Save, Cancel, Search } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import employeeService from '../services/employeeService';
 
@@ -29,9 +29,7 @@ const ProductsTable = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [updatedProduct, setUpdatedProduct] = useState({
     name: '',
-    mainCategory: '',
     subCategory: '',
-    description: '',
     stockLevel: 0,
     reorderLevel: 0,
     active: true
@@ -49,21 +47,9 @@ const ProductsTable = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await employeeService.getProductCategories();
+      const response = await employeeService.getAllProducts();
       if (response.success) {
-        // For each category, fetch products
-        const allProducts = [];
-        for (const category of response.data) {
-          const productResponse = await employeeService.getProduct({ id: category });
-          if (productResponse.success && productResponse.data) {
-            if (Array.isArray(productResponse.data)) {
-              allProducts.push(...productResponse.data);
-            } else {
-              allProducts.push(productResponse.data);
-            }
-          }
-        }
-        setProducts(allProducts);
+        setProducts(response.data || []);
       } else {
         showSnackbar(response.message || 'Failed to fetch products', 'error');
       }
@@ -78,10 +64,10 @@ const ProductsTable = () => {
   const handleDelete = async (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        const response = await employeeService.deleteProduct(productId);
+        const response = await employeeService.deleteProduct(productId); // Delete by productId
         if (response.success) {
-          setProducts(products.filter((product) => product.productId !== productId));
           showSnackbar('Product deleted successfully');
+          fetchProducts();
         } else {
           showSnackbar(response.message || 'Failed to delete product', 'error');
         }
@@ -97,9 +83,7 @@ const ProductsTable = () => {
     setUpdatedProduct({
       productId: product.productId,
       name: product.name,
-      mainCategory: product.mainCategory,
       subCategory: product.subCategory || '',
-      description: product.description || '',
       stockLevel: product.stockLevel || 0,
       reorderLevel: product.reorderLevel || 0,
       active: product.active !== undefined ? product.active : true
@@ -118,11 +102,10 @@ const ProductsTable = () => {
     try {
       const response = await employeeService.updateProduct(updatedProduct);
       if (response.success) {
-        setProducts(products.map((product) =>
-          product.productId === productId ? { ...product, ...updatedProduct } : product
-        ));
+        
         setEditingProduct(null);
         showSnackbar('Product updated successfully');
+        fetchProducts();
       } else {
         showSnackbar(response.message || 'Failed to update product', 'error');
       }
@@ -136,7 +119,6 @@ const ProductsTable = () => {
     setEditingProduct(null);
     setUpdatedProduct({
       name: '',
-      mainCategory: '',
       subCategory: '',
       description: '',
       stockLevel: 0,
@@ -160,7 +142,6 @@ const ProductsTable = () => {
 
   const filteredProducts = products.filter(product =>
     product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product?.mainCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product?.subCategory?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -249,8 +230,8 @@ const ProductsTable = () => {
                           <TableCell>
                             {editingProduct === product.productId ? (
                               <TextField
-                                name="mainCategory"
-                                value={updatedProduct.mainCategory}
+                                name="subCategory"
+                                value={updatedProduct.subCategory}
                                 onChange={handleInputChange}
                                 fullWidth
                                 className="input-3d"
@@ -258,8 +239,7 @@ const ProductsTable = () => {
                               />
                             ) : (
                               <Typography>
-                                {product.mainCategory}
-                                {product.subCategory && ` - ${product.subCategory}`}
+                                {product.subCategory && `${product.subCategory}`}
                               </Typography>
                             )}
                           </TableCell>

@@ -33,7 +33,7 @@ import {
   Phone as PhoneIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
-import customerService from "../../services/customerService";
+import adminService from "../../services/adminService";
 
 const CustomerManagement = () => {
   const [customers, setCustomers] = useState([]);
@@ -75,7 +75,7 @@ const CustomerManagement = () => {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const response = await customerService.getAllCustomers();
+      const response = await adminService.getAllCustomers();
       if (response.success) {
         setCustomers(response.data);
       } else {
@@ -151,12 +151,12 @@ const CustomerManagement = () => {
     try {
       let response;
       if (editMode && currentCustomer) {
-        response = await customerService.updateCustomer({
+        response = await adminService.updateCustomer({
           ...formData,
           customerId: currentCustomer.customerId
         });
       } else {
-        response = await customerService.addCustomer(formData);
+        response = await adminService.addCustomer(formData);
       }
       
       if (response.success) {
@@ -180,7 +180,7 @@ const CustomerManagement = () => {
     }
     
     try {
-      const response = await customerService.deleteCustomer(id);
+      const response = await adminService.deleteCustomer(id);
       if (response.success) {
         showSnackbar(response.message || "Customer deactivated successfully");
         fetchCustomers();
