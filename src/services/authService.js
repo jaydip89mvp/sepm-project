@@ -25,21 +25,23 @@ export const authService = {
     try {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
-      console.log('Attempting login with email:', trimmedEmail);
+      
+      // Create Basic Auth token
+      const basicToken = btoa(`${trimmedEmail}:${trimmedPassword}`);
       
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Authorization': `Basic ${basicToken}`
         },
+        credentials: 'include',
         body: JSON.stringify({ 
           email: trimmedEmail,
           password: trimmedPassword
         }),
       });
-
-      console.log('Login response status:', response.status);
 
       if (response.status === 401) {
         throw new Error('Invalid email or password');
@@ -54,28 +56,25 @@ export const authService = {
         throw new Error(errorMessage);
       }
 
-      const data = await handleResponse(response); 
-      console.log('Login successful, received data:', data);
+      const data = await handleResponse(response);
 
       if (!data.email || !data.role) {
-         console.error("Login response missing required fields (email, role):", data);
          throw new Error("Invalid response data from server after login.");
       }
 
-      const basicToken = btoa(`${trimmedEmail}:${trimmedPassword}`); 
-      
-      localStorage.setItem('token', basicToken); 
+      // Store the Basic Auth token
+      localStorage.setItem('token', basicToken);
       
       localStorage.setItem('userData', JSON.stringify({
         email: data.email,
         role: data.role
       }));
       
-      return { email: data.email, role: data.role }; 
+      return { email: data.email, role: data.role };
 
     } catch (error) {
       console.error('Login error in authService:', error);
-      throw error; 
+      throw error;
     }
   },
 
@@ -83,7 +82,7 @@ export const authService = {
     try {
       const token = localStorage.getItem('token');
 
-      if (token && API_URL) { 
+      if (token && API_URL) {
          try {
             await fetch(`${API_URL}/logout`, {
                method: 'POST',
@@ -92,8 +91,8 @@ export const authService = {
                   'Content-Type': 'application/json',
                   'Accept': 'application/json'
                },
+               credentials: 'include'
             });
-            console.log('Logout signal sent to backend.');
          } catch (backendLogoutError) {
             console.warn('Failed to notify backend on logout:', backendLogoutError);
          }
@@ -101,15 +100,14 @@ export const authService = {
       
       localStorage.removeItem('token');
       localStorage.removeItem('userData');
-      console.log('Client-side logout successful.');
       
-      return true; 
+      return true;
 
     } catch (error) {
       console.error('Logout error:', error);
       localStorage.removeItem('token');
       localStorage.removeItem('userData');
-      throw error; 
+      throw error;
     }
   },
 

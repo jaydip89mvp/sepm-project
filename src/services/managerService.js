@@ -126,6 +126,64 @@ const managerService = {
         return axiosInstance.get(`/generatereport?month=${month}&year=${year}`, {
             responseType: 'blob'
         });
+    },
+
+    // Direct Employee Entry
+    createDirectEmployee: async (employeeData) => {
+        try {
+            // Format the employee data
+            const formattedData = {
+                email: employeeData.email,
+                name: `${employeeData.firstName} ${employeeData.lastName}`,
+                password: employeeData.password,
+                assigned: {
+                    name: `EMPLOYEE_${employeeData.role}`,
+                    description: `Employee role for ${employeeData.role} department`
+                },
+                active: true
+            };
+
+            const response = await axiosInstance.post('/addemployee', formattedData);
+            
+            if (response.status === 200) {
+                return {
+                    success: true,
+                    message: 'Employee added successfully',
+                    data: response.data
+                };
+            }
+            throw new Error('Failed to add employee');
+        } catch (error) {
+            console.error('Error creating employee:', error);
+            if (error.response) {
+                switch (error.response.status) {
+                    case 409:
+                        return {
+                            success: false,
+                            message: 'Employee with this email already exists'
+                        };
+                    case 403:
+                        return {
+                            success: false,
+                            message: 'Access denied. Please check your permissions.'
+                        };
+                    case 500:
+                        return {
+                            success: false,
+                            message: 'Server error occurred while adding employee'
+                        };
+                    default:
+                        return {
+                            success: false,
+                            message: error.response.data || 'Failed to add employee'
+                        };
+                }
+            }
+            return {
+                success: false,
+                message: 'Network error occurred'
+            };
+        }
     }
 };
 

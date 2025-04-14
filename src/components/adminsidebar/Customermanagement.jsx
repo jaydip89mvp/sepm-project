@@ -33,7 +33,7 @@ import {
   Phone as PhoneIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
-import customerService from "../../services/customerService";
+import customerService from "../../services/adminService";
 
 const CustomerManagement = () => {
   const [customers, setCustomers] = useState([]);
