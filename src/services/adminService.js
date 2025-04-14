@@ -7,8 +7,7 @@ const axiosInstance = axios.create({
     baseURL: API_URL,
     withCredentials: true,
     headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Content-Type': 'application/json'
     }
 });
 
@@ -16,8 +15,13 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
     config => {
         const token = localStorage.getItem('token');
+        console.log('Current token (Basic Auth string):', token);
         if (token) {
+            // Use Basic Auth scheme
             config.headers.Authorization = `Basic ${token}`;
+            console.log('Request headers with Basic Auth:', config.headers);
+        } else {
+            console.warn('No token found in localStorage for Basic Auth');
         }
         return config;
     },
@@ -30,6 +34,11 @@ axiosInstance.interceptors.request.use(
 // Add response interceptor for error handling
 axiosInstance.interceptors.response.use(
     response => {
+        console.log('Response interceptor:', {
+            url: response.config.url,
+            status: response.status,
+            data: response.data
+        });
         return response;
     },
     error => {
@@ -41,7 +50,6 @@ axiosInstance.interceptors.response.use(
         if (error.response && error.response.status === 401) {
             if (!window.location.pathname.includes('/login')) {
                 localStorage.removeItem('token');
-                localStorage.removeItem('userData');
                 window.location.href = '/login';
             }
         }
@@ -95,9 +103,9 @@ const adminService = {
     // Add new category
     addCategory: async (categoryData) => {
         try {
-            // Remove any existing MANAGER_ prefix and format the name
-            const cleanName = categoryData.name.replace(/^MANAGER_/i, '');
-            const formattedName = cleanName.toUpperCase().replace(/\s+/g, '_');
+            // Format the category name - just convert to uppercase and replace spaces with underscores
+            // Don't add MANAGER_ prefix as it's added by the backend
+            const formattedName = categoryData.name.toUpperCase().replace(/\s+/g, '_');
             
             const response = await axiosInstance.post('/addcategories', {
                 name: formattedName
@@ -115,6 +123,7 @@ const adminService = {
         } catch (error) {
             console.error('Error in addCategory:', error);
             if (error.response) {
+                // Handle specific error cases
                 if (error.response.status === 409) {
                     throw new Error('This category already exists. Please use a different name.');
                 }
@@ -127,135 +136,20 @@ const adminService = {
     // Add new manager
     addManager: async (managerData) => {
         try {
-            // Ensure the manager has the correct role
-            const managerRole = {
-                name: `MANAGER_${managerData.department}`,
-                description: `Manager role for ${managerData.department} department`
-            };
-
-            const response = await axiosInstance.post('/addmanager', {
-                ...managerData,
-                role: managerRole
-            });
-
-            // Even if we get a 500 error, if the data is in the response, consider it a success
-            if (response.data) {
-                return { 
-                    success: true, 
-                    message: 'Manager added successfully',
-                    data: response.data
-                };
-            }
-            return { 
-                success: false, 
-                message: 'Failed to add manager',
-                data: null
-            };
+            const response = await axiosInstance.post('/addmanager', managerData);
+            return response;
         } catch (error) {
-            console.error('Error adding manager:', error);
-            // If we have data in the error response, consider it a success
-            if (error.response && error.response.data) {
-                return { 
-                    success: true, 
-                    message: 'Manager added successfully',
-                    data: error.response.data
-                };
-            }
-            if (error.response) {
-                switch (error.response.status) {
-                    case 409:
-                        return { 
-                            success: false, 
-                            message: 'Manager with this email already exists',
-                            data: null
-                        };
-                    case 400:
-                        return { 
-                            success: false, 
-                            message: 'Invalid manager data',
-                            data: null
-                        };
-                    default:
-                        return { 
-                            success: false, 
-                            message: 'Failed to add manager. Please try again.',
-                            data: null
-                        };
-                }
-            }
-            return { 
-                success: false, 
-                message: 'Network error. Please check your connection.',
-                data: null
-            };
+            throw error;
         }
     },
 
     // Update manager
     updateManager: async (managerData) => {
         try {
-            // Format the manager data to match backend expectations
-            const formattedData = {
-                email: managerData.email,
-                name: managerData.name,
-                password: managerData.password,
-                assigned: {
-                    name: `MANAGER_${managerData.department}`,
-                    description: `Manager role for ${managerData.department} department`
-                }
-            };
-
-            const response = await axiosInstance.put('/updatemanager', formattedData);
-            
-            if (response.status === 200) {
-                return { 
-                    success: true, 
-                    message: 'Manager updated successfully',
-                    data: response.data
-                };
-            }
-            throw new Error('Failed to update manager');
+            const response = await axiosInstance.put('/updatemanager', managerData);
+            return response;
         } catch (error) {
-            console.error('Error updating manager:', error);
-            if (error.response) {
-                switch (error.response.status) {
-                    case 404:
-                        return { 
-                            success: false, 
-                            message: 'Manager not found',
-                            data: null
-                        };
-                    case 400:
-                        return { 
-                            success: false, 
-                            message: 'Invalid manager data',
-                            data: null
-                        };
-                    case 403:
-                        return { 
-                            success: false, 
-                            message: 'Access denied. Please check your permissions.',
-                            data: null
-                        };
-                    case 500:
-                        return { 
-                            success: false, 
-                            message: 'Failed to update manager. Please try again.',
-                            data: null
-                        };
-                    default:
-                        return { 
-                            success: false, 
-                            message: error.response.data || 'Failed to update manager',
-                            data: null
-                        };
-                }
-            }
-            return { 
-                success: false, 
-                message: 'Network error. Please check your connection.',
-                data: null
-            };
+            throw error;
         }
     },
 
@@ -273,28 +167,9 @@ const adminService = {
     getAllManagers: async () => {
         try {
             const response = await axiosInstance.get('/getallmanagers');
-            if (response.status === 200) {
-                // Filter out admins and ensure proper manager data
-                const managers = response.data.filter(manager => {
-                    // Check if the manager has a role and it's a manager role
-                    const isManager = manager.assigned && 
-                                    manager.assigned.name && 
-                                    manager.assigned.name.startsWith('MANAGER_');
-                    return isManager;
-                }).map(manager => ({
-                    ...manager,
-                    department: manager.assigned?.name?.replace('MANAGER_', '') || 'No Department'
-                }));
-                
-                return {
-                    success: true,
-                    data: managers
-                };
-            }
-            return { success: false, data: [] };
+            return response;
         } catch (error) {
-            console.error('Error fetching managers:', error);
-            return { success: false, data: [], message: 'Failed to fetch managers' };
+            throw error;
         }
     },
 
@@ -302,47 +177,9 @@ const adminService = {
     deleteManager: async (email) => {
         try {
             const response = await axiosInstance.put(`/deletemanager?email=${email}`);
-            if (response.status === 200) {
-                return { 
-                    success: true, 
-                    message: 'Manager deleted successfully',
-                    data: response.data
-                };
-            }
-            return { 
-                success: false, 
-                message: 'Failed to delete manager',
-                data: null
-            };
+            return response;
         } catch (error) {
-            console.error('Error deleting manager:', error);
-            if (error.response) {
-                switch (error.response.status) {
-                    case 404:
-                        return { 
-                            success: false, 
-                            message: 'Manager not found',
-                            data: null
-                        };
-                    case 400:
-                        return { 
-                            success: false, 
-                            message: 'Invalid manager data',
-                            data: null
-                        };
-                    default:
-                        return { 
-                            success: false, 
-                            message: 'Failed to delete manager. Please try again.',
-                            data: null
-                        };
-                }
-            }
-            return { 
-                success: false, 
-                message: 'Network error. Please check your connection.',
-                data: null
-            };
+            throw error;
         }
     },
 
@@ -386,63 +223,22 @@ const adminService = {
         };
     },
 
-    // Generate report
     generateReport: async (month, year) => {
         try {
-            const response = await axiosInstance.post(`/generatereport`, {
+            const response = await axios.post(`${API_URL}/admin/generatereport`, {
                 month: parseInt(month),
                 year: parseInt(year)
-            }, {
-                responseType: 'blob',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/pdf'
-                }
             });
-
-            if (response.status === 200 || response.status === 201) {
-                // Create a blob URL for the PDF
-                const blob = new Blob([response.data], { type: 'application/pdf' });
-                const url = window.URL.createObjectURL(blob);
-                
-                // Create a link element and trigger download
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', `Report_${month}_${year}.pdf`);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                
-                return {
-                    success: true,
-                    message: 'Report generated successfully'
-                };
-            }
-            throw new Error('Failed to generate report');
+            return {
+                success: true,
+                data: response.data,
+                message: "Report generated successfully"
+            };
         } catch (error) {
-            console.error('Error generating report:', error);
-            if (error.response) {
-                switch (error.response.status) {
-                    case 403:
-                        return {
-                            success: false,
-                            message: 'Access denied. Please check your permissions.'
-                        };
-                    case 500:
-                        return {
-                            success: false,
-                            message: 'Server error occurred while generating report.'
-                        };
-                    default:
-                        return {
-                            success: false,
-                            message: error.response.data || 'Failed to generate report'
-                        };
-                }
-            }
+            console.error("Error generating report:", error);
             return {
                 success: false,
-                message: 'Network error occurred'
+                message: error.response?.data || "Failed to generate report"
             };
         }
     },
@@ -451,57 +247,15 @@ const adminService = {
     getAllSuppliers: async () => {
         try {
             const response = await axiosInstance.get('/getsuppliers');
-            console.log('Raw supplier response:', response);
-            
-            if (response.status === 200) {
-                // Handle different response formats
-                let suppliersData = [];
-                if (Array.isArray(response.data)) {
-                    suppliersData = response.data;
-                } else if (response.data && Array.isArray(response.data.data)) {
-                    suppliersData = response.data.data;
-                } else if (response.data && typeof response.data === 'object') {
-                    suppliersData = Object.values(response.data);
-                }
-                
-                return {
-                    success: true,
-                    data: suppliersData,
-                    message: 'Suppliers fetched successfully'
-                };
-            }
-            throw new Error('Invalid response from server');
+            return {
+                success: true,
+                data: response.data
+            };
         } catch (error) {
             console.error('Error fetching suppliers:', error);
-            if (error.response) {
-                // Handle specific error cases
-                if (error.response.status === 403) {
-                    return {
-                        success: false,
-                        message: 'Access denied. Please check your permissions.',
-                        data: []
-                    };
-                }
-                if (error.response.status === 500) {
-                    return {
-                        success: false,
-                        message: 'Server error occurred. Please try again later.',
-                        data: []
-                    };
-                }
-                // Handle error response format
-                const errorMessage = error.response.data?.message || 
-                                   (typeof error.response.data === 'string' ? error.response.data : 'Failed to fetch suppliers');
-                return {
-                    success: false,
-                    message: errorMessage,
-                    data: []
-                };
-            }
             return {
                 success: false,
-                message: 'Network error occurred',
-                data: []
+                message: error.response?.data || 'Failed to fetch suppliers'
             };
         }
     },
@@ -583,69 +337,12 @@ const adminService = {
     getAllCustomers: async () => {
         try {
             const response = await axiosInstance.get('/getcustomers');
-            console.log('Raw customer response:', response);
-            
-            if (response.status === 200) {
-                // Handle different response formats
-                let customersData = [];
-                if (Array.isArray(response.data)) {
-                    customersData = response.data;
-                } else if (response.data && Array.isArray(response.data.data)) {
-                    customersData = response.data.data;
-                } else if (response.data && typeof response.data === 'object') {
-                    customersData = Object.values(response.data);
-                }
-                
-                // Format customer data
-                const formattedCustomers = customersData.map(customer => ({
-                    id: customer.customerId,
-                    name: customer.name,
-                    email: customer.email,
-                    contact: customer.contact || '',
-                    address: customer.address || '',
-                    active: customer.active !== undefined ? customer.active : true,
-                    added: customer.added
-                }));
-                
-                return {
-                    success: true,
-                    data: formattedCustomers,
-                    message: 'Customers fetched successfully'
-                };
-            }
-            throw new Error('Invalid response from server');
-        } catch (error) {
-            console.error('Error fetching customers:', error);
-            if (error.response) {
-                // Handle specific error cases
-                if (error.response.status === 403) {
-                    return {
-                        success: false,
-                        message: 'Access denied. Please check your permissions.',
-                        data: []
-                    };
-                }
-                if (error.response.status === 500) {
-                    return {
-                        success: false,
-                        message: 'Server error occurred. Please try again later.',
-                        data: []
-                    };
-                }
-                // Handle error response format
-                const errorMessage = error.response.data?.message || 
-                                   (typeof error.response.data === 'string' ? error.response.data : 'Failed to fetch customers');
-                return {
-                    success: false,
-                    message: errorMessage,
-                    data: []
-                };
-            }
             return {
-                success: false,
-                message: 'Network error occurred',
-                data: []
+                success: true,
+                data: response.data
             };
+        } catch (error) {
+            return adminService.handleError(error);
         }
     },
 
@@ -668,53 +365,13 @@ const adminService = {
     addCustomer: async (customerData) => {
         try {
             const response = await axiosInstance.post('/addcustomer', customerData);
-            if (response.status === 200 || response.status === 201) {
-                return {
-                    success: true,
-                    data: response.data,
-                    message: 'Customer added successfully'
-                };
-            }
-            return { 
-                success: false, 
-                message: 'Failed to add customer',
-                data: null
+            return {
+                success: true,
+                data: response.data,
+                message: 'Customer added successfully'
             };
         } catch (error) {
-            console.error('Error adding customer:', error);
-            if (error.response) {
-                switch (error.response.status) {
-                    case 400:
-                        return {
-                            success: false,
-                            message: 'Invalid customer data. Please check the input.',
-                            data: null
-                        };
-                    case 409:
-                        return {
-                            success: false,
-                            message: 'Customer with this email already exists.',
-                            data: null
-                        };
-                    case 500:
-                        return {
-                            success: false,
-                            message: error.response.data || 'Server error occurred. Please try again later.',
-                            data: null
-                        };
-                    default:
-                        return {
-                            success: false,
-                            message: error.response.data?.message || 'Failed to add customer',
-                            data: null
-                        };
-                }
-            }
-            return {
-                success: false,
-                message: 'Network error occurred',
-                data: null
-            };
+            return adminService.handleError(error);
         }
     },
 

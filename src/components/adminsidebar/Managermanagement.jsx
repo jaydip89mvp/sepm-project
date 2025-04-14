@@ -44,15 +44,14 @@ import adminService from '../../services/adminService';
 
 const ManagerManagement = () => {
   const [managers, setManagers] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentManager, setCurrentManager] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
     department: "",
     phone: "",
@@ -74,7 +73,7 @@ const ManagerManagement = () => {
         setLoading(true);
         setError(null);
         const response = await adminService.getAllManagers();
-        if (response.success && response.data) {
+        if (response && response.data) {
           setManagers(response.data);
           showSnackbar('Managers loaded successfully');
         } else {
@@ -97,23 +96,20 @@ const ManagerManagement = () => {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        setLoadingDepartments(true);
         const response = await adminService.getManagerRoles();
-        if (response && response.data) {
-          setDepartments(response.data);
-          // Set default department if not already set
-          if (!formData.department && response.data.length > 0) {
-            setFormData(prev => ({
-              ...prev,
-              department: response.data[0].name.replace('MANAGER_', '')
-            }));
-          }
+        // Store the full role objects
+        setDepartments(response.data);
+        
+        // Set default department if not already set
+        if (!formData.department && response.data.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            department: response.data[0].name.replace('MANAGER_', '')
+          }));
         }
       } catch (error) {
         console.error('Error fetching departments:', error);
         setError('Failed to fetch departments');
-      } finally {
-        setLoadingDepartments(false);
       }
     };
 
@@ -126,6 +122,7 @@ const ManagerManagement = () => {
       setEditMode(true);
       setCurrentManager(manager);
       setFormData({
+        name: manager.name,
         email: manager.email,
         department: manager.department,
         phone: manager.phone || '',
@@ -135,6 +132,7 @@ const ManagerManagement = () => {
       setEditMode(false);
       setCurrentManager(null);
       setFormData({
+        name: "",
         email: "",
         department: departments[0]?.name.replace('MANAGER_', '') || '',
         phone: "",
@@ -165,6 +163,7 @@ const ManagerManagement = () => {
   };
 
   const validateForm = () => {
+    if (!formData.name.trim()) return 'Name is required';
     if (!formData.email.trim()) return 'Email is required';
     if (!formData.department) return 'Department is required';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
@@ -174,15 +173,12 @@ const ManagerManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    if (!validateForm()) {
       return;
     }
 
     try {
       setLoading(true);
-      setError(null);
       
       // Find the selected role object
       const selectedRole = departments.find(role => 
@@ -200,36 +196,22 @@ const ManagerManagement = () => {
         email: formData.email,
         contact: formData.phone,
         active: formData.active,
-        department: formData.department,
+        // Add the assigned role object
         assigned: selectedRole
       };
 
-      let response;
       if (editMode && currentManager) {
-        // For updates, include the original data
-        response = await adminService.updateManager({
-          ...managerData,
-          originalEmail: currentManager.email,
-          originalDepartment: currentManager.department
-        });
+        await adminService.updateManager(managerData);
+        showSnackbar('Manager updated successfully');
       } else {
         // For new managers, we need to set a default password
         managerData.password = "defaultPassword123"; // This should be changed by the user later
-        response = await adminService.addManager(managerData);
+        await adminService.addManager(managerData);
+        showSnackbar('Manager added successfully');
       }
 
-      if (response.success) {
-        showSnackbar(response.message || 'Manager saved successfully');
-        // Fetch updated managers list
-        const managersResponse = await adminService.getAllManagers();
-        if (managersResponse.success && managersResponse.data) {
-          setManagers(managersResponse.data);
-        }
-        handleClose();
-      } else {
-        setError(response.message || 'Failed to save manager');
-        showSnackbar(response.message || 'Failed to save manager', 'error');
-      }
+      handleClose();
+      fetchManagers();
     } catch (error) {
       console.error('Error saving manager:', error);
       setError(error.message || 'Failed to save manager. Please try again.');
@@ -238,16 +220,12 @@ const ManagerManagement = () => {
       setLoading(false);
     }
   };
- 
+
   const handleDelete = async (email) => {
     try {
-      const response = await adminService.deleteManager(email);
-      if (response.success) {
-        setManagers(managers.filter(mgr => mgr.email !== email));
-        showSnackbar(response.message || 'Manager deleted successfully');
-      } else {
-        showSnackbar(response.message || 'Failed to delete manager', 'error');
-      }
+      await adminService.deleteManager(email);
+      setManagers(managers.filter(mgr => mgr.email !== email));
+      showSnackbar('Manager deleted successfully');
     } catch (error) {
       console.error('Error deleting manager:', error);
       showSnackbar(error.message || 'Failed to delete manager', 'error');
@@ -386,7 +364,7 @@ const ManagerManagement = () => {
                   <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Manager</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Department</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -412,20 +390,28 @@ const ManagerManagement = () => {
                             boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                           }}
                         >
-                          {manager.email.charAt(0).toUpperCase()}
+                          {manager.name.substring(0, 1)}
                         </Avatar>
                         <Box>
                           <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                            {manager.email}
+                            {manager.name}
                           </Typography>
-                          {manager.phone && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                              <PhoneIcon fontSize="small" color="action" />
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <EmailIcon fontSize="small" color="action" />
                               <Typography variant="caption" color="text.secondary">
-                                {manager.phone}
+                                {manager.email}
                               </Typography>
                             </Box>
-                          )}
+                            {manager.phone && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <PhoneIcon fontSize="small" color="action" />
+                                <Typography variant="caption" color="text.secondary">
+                                  {manager.phone}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
                         </Box>
                       </Box>
                     </TableCell>
@@ -447,34 +433,34 @@ const ManagerManagement = () => {
                         icon={<StatusIcon />}
                       />
                     </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Tooltip title="Edit Manager">
-                          <IconButton
-                            size="small"
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                        <Tooltip title="Edit Manager" arrow>
+                          <IconButton 
+                            size="small" 
+                            color="primary"
                             onClick={() => handleOpenDialog(manager)}
-                            sx={{
-                              color: 'primary.main',
-                              '&:hover': {
-                                backgroundColor: 'rgba(99, 102, 241, 0.1)'
-                              }
+                            className="btn-3d"
+                            sx={{ 
+                              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                              '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
                             }}
                           >
-                            <EditIcon />
+                            <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Delete Manager">
-                          <IconButton
-                            size="small"
+                        <Tooltip title="Delete Manager" arrow>
+                          <IconButton 
+                            size="small" 
+                            color="error"
                             onClick={() => handleDelete(manager.email)}
-                            sx={{
-                              color: 'error.main',
-                              '&:hover': {
-                                backgroundColor: 'rgba(244, 67, 54, 0.1)'
-                              }
+                            className="btn-3d"
+                            sx={{ 
+                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                              '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
                             }}
                           >
-                            <DeleteIcon />
+                            <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </Box>
@@ -515,6 +501,28 @@ const ManagerManagement = () => {
         <DialogContent>
           <Box component="form" onSubmit={handleSubmit} sx={{ pt: 1 }}>
             <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Manager Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="input-3d"
+                  variant="outlined"
+                  required
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#6366f1',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
+                />
+              </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -561,7 +569,26 @@ const ManagerManagement = () => {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Department"
+                  name="department"
+                  value={formData.department}
+                  onChange={handleChange}
+                  className="input-3d"
+                  variant="outlined"
+                  required
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#6366f1',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
+                >
                   <InputLabel id="department-label">Department</InputLabel>
                   <Select
                     labelId="department-label"
