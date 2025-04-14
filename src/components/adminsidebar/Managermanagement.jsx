@@ -40,7 +40,7 @@ import {
   People as CustomerIcon
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
-import adminService from "../../services/adminService";
+import adminService from '../../services/adminService';
 
 const ManagerManagement = () => {
   const [managers, setManagers] = useState([]);
@@ -92,6 +92,30 @@ const ManagerManagement = () => {
     fetchManagers();
   }, []);
 
+  // Fetch departments
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await adminService.getManagerRoles();
+        // Store the full role objects
+        setDepartments(response.data);
+        
+        // Set default department if not already set
+        if (!formData.department && response.data.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            department: response.data[0].name.replace('MANAGER_', '')
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+        setError('Failed to fetch departments');
+      }
+    };
+
+    fetchDepartments();
+  }, []);
+
   const handleOpenDialog = (manager = null) => {
     setError(null);
     if (manager) {
@@ -110,7 +134,7 @@ const ManagerManagement = () => {
       setFormData({
         name: "",
         email: "",
-        department: "",
+        department: departments[0]?.name.replace('MANAGER_', '') || '',
         phone: "",
         active: true
       });
@@ -149,40 +173,45 @@ const ManagerManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    if (!validateForm()) {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    
     try {
-      if (editMode && currentManager) {
-        // Update existing manager
-        const response = await adminService.updateManager({
-          ...formData,
-          email: currentManager.email // Keep original email for update
-        });
-        
-        if (response && response.data) {
-          const updatedManagers = managers.map(mgr => 
-            mgr.email === currentManager.email ? response.data : mgr
-          );
-          setManagers(updatedManagers);
-          showSnackbar('Manager updated successfully');
-        }
-      } else {
-        // Add new manager
-        const response = await adminService.addManager(formData);
-        
-        if (response && response.data) {
-          setManagers([...managers, response.data]);
-          showSnackbar('Manager added successfully');
-        }
+      setLoading(true);
+      
+      // Find the selected role object
+      const selectedRole = departments.find(role => 
+        role.name === `MANAGER_${formData.department}`
+      );
+      
+      if (!selectedRole) {
+        setError('Selected department not found');
+        setLoading(false);
+        return;
       }
+      
+      // Prepare manager data according to the User model
+      const managerData = {
+        email: formData.email,
+        contact: formData.phone,
+        active: formData.active,
+        // Add the assigned role object
+        assigned: selectedRole
+      };
+
+      if (editMode && currentManager) {
+        await adminService.updateManager(managerData);
+        showSnackbar('Manager updated successfully');
+      } else {
+        // For new managers, we need to set a default password
+        managerData.password = "defaultPassword123"; // This should be changed by the user later
+        await adminService.addManager(managerData);
+        showSnackbar('Manager added successfully');
+      }
+
       handleClose();
+      fetchManagers();
     } catch (error) {
       console.error('Error saving manager:', error);
       setError(error.message || 'Failed to save manager. Please try again.');
@@ -559,18 +588,46 @@ const ManagerManagement = () => {
                       }
                     }
                   }}
-                />
+                >
+                  <InputLabel id="department-label">Department</InputLabel>
+                  <Select
+                    labelId="department-label"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleChange}
+                    label="Department"
+                    required
+                    disabled={loadingDepartments}
+                  >
+                    {loadingDepartments ? (
+                      <MenuItem value="" disabled>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <CircularProgress size={20} sx={{ mr: 1 }} />
+                          Loading departments...
+                        </Box>
+                      </MenuItem>
+                    ) : departments.length === 0 ? (
+                      <MenuItem value="" disabled>No departments available</MenuItem>
+                    ) : (
+                      departments.map((role, index) => (
+                        <MenuItem key={index} value={role.name.replace('MANAGER_', '')}>{role.name.replace('MANAGER_', '')}</MenuItem>
+                      ))
+                    )}
+                  </Select>
+                </FormControl>
               </Grid>
-              <Grid item xs={12}>
+
+              <Grid item xs={12} sm={6}>
                 <FormControlLabel
                   control={
                     <Switch
                       checked={formData.active}
                       onChange={handleSwitchChange}
-                      color="primary"
+                      name="active"
                     />
                   }
-                  label="Active Status"
+                  label="Active"
+                  sx={{ mt: 2 }}
                 />
               </Grid>
             </Grid>

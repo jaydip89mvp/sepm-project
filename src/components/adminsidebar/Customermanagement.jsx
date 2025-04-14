@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   Box,
   Button,
@@ -19,6 +18,11 @@ import {
   Avatar,
   Tooltip,
   Chip,
+  CircularProgress,
+  Snackbar,
+  Alert,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -29,29 +33,59 @@ import {
   Phone as PhoneIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
+import customerService from "../../services/customerService";
 
 const CustomerManagement = () => {
   const [customers, setCustomers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState(null);
-  const [formData, setFormData] = useState({ name: "", email: "", contact: "" });
+  const [formData, setFormData] = useState({ 
+    name: "", 
+    email: "", 
+    contact: "", 
+    address: "",
+    active: true 
+  });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   // Fetch customers on load
   useEffect(() => {
     fetchCustomers();
   }, []);
 
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbar({
+      open: true,
+      message,
+      severity,
+    });
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
   const fetchCustomers = async () => {
+    setLoading(true);
     try {
-      const res = await axios.get("/api/customers");
-      const cleanedData = res.data.map((customer) => ({
-        ...customer,
-        name: customer.name.split(",")[0].trim(), // Remove address from name
-      }));
-      setCustomers(cleanedData);
+      const response = await customerService.getAllCustomers();
+      if (response.success) {
+        setCustomers(response.data);
+      } else {
+        showSnackbar(response.message || "Failed to fetch customers", "error");
+      }
     } catch (err) {
       console.error("Error fetching customers:", err);
+      showSnackbar("Error fetching customers. Please try again.", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,11 +96,20 @@ const CustomerManagement = () => {
       setFormData({
         name: customer.name,
         email: customer.email,
+        contact: customer.contact || "",
+        address: customer.address || "",
+        active: customer.active !== undefined ? customer.active : true
       });
     } else {
       setEditMode(false);
       setCurrentCustomer(null);
-      setFormData({ name: "", email: "", contact: "" });
+      setFormData({ 
+        name: "", 
+        email: "", 
+        contact: "", 
+        address: "",
+        active: true 
+      });
     }
     setOpen(true);
   };
@@ -80,34 +123,73 @@ const CustomerManagement = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSwitchChange = (e) => {
+    setFormData({
+      ...formData,
+      active: e.target.checked
+    });
+  };
+
+  const validateForm = () => {
+    if (!formData.name.trim()) return "Name is required";
+    if (!formData.email.trim()) return "Email is required";
+    if (!formData.contact.trim()) return "Contact is required";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return "Invalid email format";
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.email.trim() || !formData.contact.trim()) return;
+    
+    const validationError = validateForm();
+    if (validationError) {
+      showSnackbar(validationError, "error");
+      return;
+    }
 
-    const cleanedFormData = {
-      ...formData,
-      name: formData.name.split(",")[0].trim(), // Remove address before submitting
-    };
-
+    setSubmitting(true);
     try {
+      let response;
       if (editMode && currentCustomer) {
-        await axios.put(`/api/customers/${currentCustomer._id}`, cleanedFormData);
+        response = await customerService.updateCustomer({
+          ...formData,
+          customerId: currentCustomer.customerId
+        });
       } else {
-        await axios.post("/api/customers", cleanedFormData);
+        response = await customerService.addCustomer(formData);
       }
-      fetchCustomers();
-      handleClose();
+      
+      if (response.success) {
+        showSnackbar(response.message || (editMode ? "Customer updated successfully" : "Customer added successfully"));
+        fetchCustomers();
+        handleClose();
+      } else {
+        showSnackbar(response.message || "Failed to save customer", "error");
+      }
     } catch (err) {
       console.error("Error saving customer:", err);
+      showSnackbar("Error saving customer. Please try again.", "error");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to deactivate this customer?")) {
+      return;
+    }
+    
     try {
-      await axios.delete(`/api/customers/${id}`);
-      fetchCustomers();
+      const response = await customerService.deleteCustomer(id);
+      if (response.success) {
+        showSnackbar(response.message || "Customer deactivated successfully");
+        fetchCustomers();
+      } else {
+        showSnackbar(response.message || "Failed to deactivate customer", "error");
+      }
     } catch (err) {
-      console.error("Error deleting customer:", err);
+      console.error("Error deactivating customer:", err);
+      showSnackbar("Error deactivating customer. Please try again.", "error");
     }
   };
 
@@ -129,6 +211,14 @@ const CustomerManagement = () => {
       transition: { type: "spring", stiffness: 100, damping: 12 },
     },
   };
+
+  if (loading && customers.length === 0) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box className="card-3d-soft" sx={{ p: 4, borderRadius: 3, backgroundColor: "white" }}>
@@ -194,7 +284,8 @@ const CustomerManagement = () => {
               <TableRow>
                 <TableCell sx={{ fontWeight: "bold" }}>Customer</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Orders</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>Contact</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
                 <TableCell align="right" sx={{ fontWeight: "bold" }}>
                   Actions
                 </TableCell>
@@ -203,7 +294,7 @@ const CustomerManagement = () => {
             <TableBody>
               {customers.map((customer) => (
                 <motion.tr
-                  key={customer._id}
+                  key={customer.customerId}
                   variants={itemVariants}
                   component={TableRow}
                   sx={{ "&:hover": { backgroundColor: "rgba(242, 242, 247, 0.5)" } }}
@@ -222,14 +313,21 @@ const CustomerManagement = () => {
                       <Typography variant="body2">{customer.email}</Typography>
                     </Box>
                   </TableCell>
-                  
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <PhoneIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                      <Typography variant="body2">{customer.contact || "N/A"}</Typography>
+                    </Box>
+                  </TableCell>
                   <TableCell>
                     <Chip
-                      label={`${customer.totalOrders || 0} orders`}
+                      label={customer.active ? "Active" : "Inactive"}
                       size="small"
                       sx={{
-                        backgroundColor: "rgba(99, 102, 241, 0.1)",
-                        color: "primary.main",
+                        backgroundColor: customer.active 
+                          ? "rgba(34, 197, 94, 0.1)" 
+                          : "rgba(239, 68, 68, 0.1)",
+                        color: customer.active ? "success.main" : "error.main",
                         fontWeight: 500,
                       }}
                     />
@@ -246,12 +344,16 @@ const CustomerManagement = () => {
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete Customer" arrow>
+                      <Tooltip title={customer.active ? "Deactivate Customer" : "Activate Customer"} arrow>
                         <IconButton
                           size="small"
-                          color="error"
-                          onClick={() => handleDelete(customer._id)}
-                          sx={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}
+                          color={customer.active ? "error" : "success"}
+                          onClick={() => handleDelete(customer.customerId)}
+                          sx={{ 
+                            backgroundColor: customer.active 
+                              ? "rgba(239, 68, 68, 0.1)" 
+                              : "rgba(34, 197, 94, 0.1)" 
+                          }}
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -298,17 +400,68 @@ const CustomerManagement = () => {
               onChange={handleChange}
               required
             />
+            <TextField
+              fullWidth
+              margin="normal"
+              label="Contact Number"
+              name="contact"
+              value={formData.contact}
+              onChange={handleChange}
+              required
+            />
+            <TextField
+              fullWidth
+              margin="normal"
+              label="Address"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              multiline
+              rows={2}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.active}
+                  onChange={handleSwitchChange}
+                  name="active"
+                />
+              }
+              label="Active"
+              sx={{ mt: 2 }}
+            />
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 2 }}>
-              <Button variant="outlined" onClick={handleClose}>
+              <Button variant="outlined" onClick={handleClose} disabled={submitting}>
                 Cancel
               </Button>
-              <Button type="submit" variant="contained">
+              <Button 
+                type="submit" 
+                variant="contained" 
+                disabled={submitting}
+                startIcon={submitting ? <CircularProgress size={20} /> : null}
+              >
                 {editMode ? "Update" : "Add"}
               </Button>
             </Box>
           </Box>
         </DialogContent>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

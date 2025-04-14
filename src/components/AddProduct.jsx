@@ -1,136 +1,316 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Paper, Typography, TextField, Button, Snackbar, Alert, Box
+  Paper, Typography, TextField, Button, Snackbar, Alert, Box,
+  FormControl, InputLabel, Select, MenuItem, CircularProgress
 } from '@mui/material';
-import { Inventory2, Delete } from '@mui/icons-material';
+import { Inventory2, Delete, Save } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import employeeService from '../services/employeeService';
 
 const AddProduct = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
-  const [product, setProduct] = useState({ name: '', subcategory: '', quantity: '' });
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [product, setProduct] = useState({
+    name: '',
+    mainCategory: '',
+    subCategory: '',
+    description: '',
+    stockLevel: 0,
+    reorderLevel: 0,
+    active: true
+  });
   const [errors, setErrors] = useState({});
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const res = await fetch(`/api/products/${productId}`);
-        if (!res.ok) throw new Error('Failed to fetch product');
-        const data = await res.json();
-        setProduct(data);
-      } catch (err) {
-        console.error(err);
-        setSnackbarMessage('Error loading product.');
-        setSnackbarSeverity('error');
-        setOpenSnackbar(true);
-      }
-    };
-
-    fetchProduct();
+    fetchCategories();
+    if (productId) {
+      fetchProduct();
+    }
   }, [productId]);
 
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const response = await employeeService.getProductCategories();
+      if (response.success) {
+        setCategories(response.data);
+      } else {
+        showSnackbar(response.message || 'Failed to fetch categories', 'error');
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      showSnackbar('Error fetching categories', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProduct = async () => {
+    setLoading(true);
+    try {
+      const response = await employeeService.getProduct(productId);
+      if (response.success) {
+        setProduct(response.data);
+      } else {
+        showSnackbar(response.message || 'Failed to fetch product', 'error');
+      }
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      showSnackbar('Error fetching product', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setProduct((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
+    const { name, value, type, checked } = e.target;
+    setProduct(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!product.name.trim()) {
+      newErrors.name = 'Product name is required';
+    }
+    if (!product.mainCategory) {
+      newErrors.mainCategory = 'Category is required';
+    }
+    if (product.stockLevel < 0) {
+      newErrors.stockLevel = 'Stock level cannot be negative';
+    }
+    if (product.reorderLevel < 0) {
+      newErrors.reorderLevel = 'Reorder level cannot be negative';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!product.name.trim()) {
-      setErrors({ name: 'Product name is required' });
-      setSnackbarMessage('Please provide a valid product name.');
-      setSnackbarSeverity('error');
-      setOpenSnackbar(true);
+    if (!validateForm()) {
+      showSnackbar('Please fix the errors in the form', 'error');
       return;
     }
 
+    setLoading(true);
     try {
-      const res = await fetch(`/api/products/${productId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: product.name }),
-      });
+      let response;
+      if (productId) {
+        // Update existing product
+        response = await employeeService.updateProduct({
+          ...product,
+          productId
+        });
+      } else {
+        // Create new product
+        response = await employeeService.createProduct(product);
+      }
 
-      if (!res.ok) throw new Error('Failed to update product');
-      setSnackbarMessage('Product name updated successfully!');
-      setSnackbarSeverity('success');
-    } catch (err) {
-      setSnackbarMessage('Error updating product.');
-      setSnackbarSeverity('error');
+      if (response.success) {
+        showSnackbar(response.message || (productId ? 'Product updated successfully' : 'Product created successfully'));
+        setTimeout(() => navigate('/products'), 1500);
+      } else {
+        showSnackbar(response.message || 'Operation failed', 'error');
+      }
+    } catch (error) {
+      console.error('Error saving product:', error);
+      showSnackbar('Error saving product', 'error');
     } finally {
-      setOpenSnackbar(true);
+      setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    const confirm = window.confirm('Are you sure you want to delete this product?');
-    if (!confirm) return;
-
-    try {
-      const res = await fetch(`/api/products/${productId}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) throw new Error('Failed to delete product');
-      setSnackbarMessage('Product deleted successfully!');
-      setSnackbarSeverity('success');
-      setOpenSnackbar(true);
-      setTimeout(() => navigate('/products'), 1500);
-    } catch (err) {
-      setSnackbarMessage('Error deleting product.');
-      setSnackbarSeverity('error');
-      setOpenSnackbar(true);
+    if (!window.confirm('Are you sure you want to delete this product?')) {
+      return;
     }
+
+    setLoading(true);
+    try {
+      const response = await employeeService.deleteProduct(productId);
+      if (response.success) {
+        showSnackbar(response.message || 'Product deleted successfully');
+        setTimeout(() => navigate('/products'), 1500);
+      } else {
+        showSnackbar(response.message || 'Failed to delete product', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      showSnackbar('Error deleting product', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
   };
 
   const handleCloseSnackbar = (_, reason) => {
     if (reason === 'clickaway') return;
-    setOpenSnackbar(false);
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
   return (
-    <Box sx={{ maxWidth: 600, margin: '0 auto' }}>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <Paper sx={{ p: 4, mt: 4 }}>
-          <Typography variant="h5" gutterBottom>Edit Product</Typography>
+    <Box sx={{ maxWidth: 800, margin: '0 auto', p: 3 }}>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ duration: 0.5 }}
+      >
+        <Paper sx={{ p: 4, borderRadius: 2, boxShadow: 3 }}>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
+            {productId ? 'Edit Product' : 'Add New Product'}
+          </Typography>
+          
           <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth name="name" label="Product Name" value={product.name}
-              onChange={handleChange} error={!!errors.name} helperText={errors.name} required
-              InputProps={{ startAdornment: <Inventory2 sx={{ mr: 1 }} /> }}
-              sx={{ mb: 3 }}
-            />
-            <TextField
-              fullWidth name="subcategory" label="Category" value={product.subcategory}
-              disabled sx={{ mb: 3 }}
-            />
-            <TextField
-              fullWidth name="quantity" label="Quantity" value={product.quantity}
-              disabled sx={{ mb: 3 }}
-            />
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button type="submit" variant="contained" color="primary">
-                Update Name
-              </Button>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, mb: 3 }}>
+              <TextField
+                fullWidth
+                name="name"
+                label="Product Name"
+                value={product.name}
+                onChange={handleChange}
+                error={!!errors.name}
+                helperText={errors.name}
+                required
+                InputProps={{ 
+                  startAdornment: <Inventory2 sx={{ mr: 1, color: 'primary.main' }} /> 
+                }}
+              />
+              
+              <FormControl fullWidth error={!!errors.mainCategory} required>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  name="mainCategory"
+                  value={product.mainCategory}
+                  onChange={handleChange}
+                  label="Category"
+                >
+                  {categories.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {errors.mainCategory && (
+                  <Typography variant="caption" color="error">
+                    {errors.mainCategory}
+                  </Typography>
+                )}
+              </FormControl>
+              
+              <TextField
+                fullWidth
+                name="subCategory"
+                label="Subcategory"
+                value={product.subCategory}
+                onChange={handleChange}
+              />
+              
+              <TextField
+                fullWidth
+                name="description"
+                label="Description"
+                value={product.description}
+                onChange={handleChange}
+                multiline
+                rows={2}
+              />
+              
+              <TextField
+                fullWidth
+                name="stockLevel"
+                label="Stock Level"
+                type="number"
+                value={product.stockLevel}
+                onChange={handleChange}
+                error={!!errors.stockLevel}
+                helperText={errors.stockLevel}
+                InputProps={{ inputProps: { min: 0 } }}
+              />
+              
+              <TextField
+                fullWidth
+                name="reorderLevel"
+                label="Reorder Level"
+                type="number"
+                value={product.reorderLevel}
+                onChange={handleChange}
+                error={!!errors.reorderLevel}
+                helperText={errors.reorderLevel}
+                InputProps={{ inputProps: { min: 0 } }}
+              />
+            </Box>
+            
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
               <Button
                 variant="outlined"
-                color="error"
-                startIcon={<Delete />}
-                onClick={handleDelete}
+                color="primary"
+                onClick={() => navigate('/products')}
+                disabled={loading}
               >
-                Delete
+                Cancel
+              </Button>
+              
+              {productId && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Delete />}
+                  onClick={handleDelete}
+                  disabled={loading}
+                >
+                  Delete
+                </Button>
+              )}
+              
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Save />}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : (productId ? 'Update Product' : 'Add Product')}
               </Button>
             </Box>
           </form>
         </Paper>
       </motion.div>
 
-      
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

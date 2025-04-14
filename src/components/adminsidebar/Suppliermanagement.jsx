@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -18,7 +18,12 @@ import {
   Tooltip,
   Chip,
   Grid,
-  Avatar
+  Avatar,
+  Switch,
+  FormControlLabel,
+  Snackbar,
+  Alert,
+  CircularProgress
 } from "@mui/material";
 import { 
   Add as AddIcon, 
@@ -32,85 +37,60 @@ import {
   Close as CloseIcon
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
-
-// Mock data for suppliers (replace with API calls in production)
-const mockSuppliers = [
-  { 
-    id: 1, 
-    name: "TechSupplies Inc.", 
-    contact: "John Smith", 
-    email: "john@techsupplies.com", 
-    phone: "555-123-4567", 
-    address: "123 Tech Blvd, Silicon Valley, CA", 
-    status: "Active",
-    productsSupplied: 47
-  },
-  { 
-    id: 2, 
-    name: "Global Distribution Co.", 
-    contact: "Sarah Johnson", 
-    email: "sarah@globaldist.com", 
-    phone: "555-234-5678", 
-    address: "456 Global St, New York, NY", 
-    status: "Active",
-    productsSupplied: 32
-  },
-  { 
-    id: 3, 
-    name: "Quality Parts Ltd.", 
-    contact: "Michael Brown", 
-    email: "michael@qualityparts.com", 
-    phone: "555-345-6789", 
-    address: "789 Quality Ave, Chicago, IL", 
-    status: "Inactive",
-    productsSupplied: 18
-  },
-  { 
-    id: 4, 
-    name: "Sustainable Materials Co.", 
-    contact: "Emily Davis", 
-    email: "emily@sustainablematerials.com", 
-    phone: "555-456-7890", 
-    address: "101 Green St, Portland, OR", 
-    status: "Active",
-    productsSupplied: 25
-  },
-  { 
-    id: 5, 
-    name: "Fast Logistics Corp.", 
-    contact: "David Wilson", 
-    email: "david@fastlogistics.com", 
-    phone: "555-567-8901", 
-    address: "222 Speed Way, Dallas, TX", 
-    status: "Active",
-    productsSupplied: 36
-  }
-];
+import adminService from "../../services/adminService";
 
 const SupplierManagement = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentSupplier, setCurrentSupplier] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    contactEmail: "",
+    contactPhone: "",
+    address: "",
+    active: true,
+    productTypes: []
   });
 
   useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const response = await fetch('https://fakeapi.com/suppliers');
-        const data = await response.json();
-        setSuppliers(data);
-      } catch (error) {
-        console.error('Error fetching suppliers:', error);
-      }
-    };
-
     fetchSuppliers();
   }, []);
+
+  const fetchSuppliers = async () => {
+    setLoading(true);
+    try {
+      const response = await adminService.getAllSuppliers();
+      if (response.success) {
+        setSuppliers(response.data);
+      } else {
+        showSnackbar(response.message || 'Failed to fetch suppliers', 'error');
+      }
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      showSnackbar('Error fetching suppliers', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   const handleOpenDialog = (supplier = null) => {
     if (supplier) {
@@ -118,14 +98,22 @@ const SupplierManagement = () => {
       setCurrentSupplier(supplier);
       setFormData({
         name: supplier.name,
-        email: supplier.email,
+        contactEmail: supplier.contactEmail,
+        contactPhone: supplier.contactPhone,
+        address: supplier.address,
+        active: supplier.active,
+        productTypes: supplier.productTypes || []
       });
     } else {
       setEditMode(false);
       setCurrentSupplier(null);
       setFormData({
         name: "",
-        email: "",
+        contactEmail: "",
+        contactPhone: "",
+        address: "",
+        active: true,
+        productTypes: []
       });
     }
     setOpen(true);
@@ -136,49 +124,68 @@ const SupplierManagement = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: name === 'active' ? checked : value
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    
     try {
+      let response;
       if (editMode && currentSupplier) {
-        const response = await fetch(`https://fakeapi.com/suppliers/${currentSupplier.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
-        const updatedSupplier = await response.json();
-        setSuppliers(suppliers.map(sup => (sup.id === currentSupplier.id ? updatedSupplier : sup)));
+        // Update existing supplier
+        const supplierData = {
+          ...formData,
+          supplierId: currentSupplier.supplierId
+        };
+        response = await adminService.updateSupplier(supplierData);
       } else {
-        const response = await fetch('https://fakeapi.com/suppliers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
-        const newSupplier = await response.json();
-        setSuppliers([...suppliers, newSupplier]);
+        // Add new supplier
+        response = await adminService.addSupplier(formData);
       }
-      handleClose();
+      
+      if (response.success) {
+        showSnackbar(response.message || (editMode ? 'Supplier updated successfully' : 'Supplier added successfully'));
+        fetchSuppliers();
+        handleClose();
+      } else {
+        showSnackbar(response.message || 'Operation failed', 'error');
+      }
     } catch (error) {
       console.error('Error saving supplier:', error);
+      showSnackbar('Error saving supplier', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (supplierId) => {
+    if (!window.confirm('Are you sure you want to deactivate this supplier?')) {
+      return;
+    }
+    
+    setLoading(true);
     try {
-      await fetch(`https://fakeapi.com/suppliers/${id}`, {
-        method: 'DELETE',
-      });
-      setSuppliers(suppliers.filter(sup => sup.id !== id));
+      const response = await adminService.deleteSupplier(supplierId);
+      if (response.success) {
+        showSnackbar(response.message || 'Supplier deactivated successfully');
+        fetchSuppliers();
+      } else {
+        showSnackbar(response.message || 'Failed to deactivate supplier', 'error');
+      }
     } catch (error) {
-      console.error('Error deleting supplier:', error);
+      console.error('Error deactivating supplier:', error);
+      showSnackbar('Error deactivating supplier', 'error');
+    } finally {
+      setLoading(false);
     }
   };
+
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -263,101 +270,141 @@ const SupplierManagement = () => {
         </Button>
       </motion.div>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="data-table-3d"
-        style={{ borderRadius: '1rem' }}
-      >
-        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, overflow: 'hidden' }}>
-          <Table>
-            <TableHead sx={{ backgroundColor: 'rgba(242, 242, 247, 0.8)' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Supplier</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Contact</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {suppliers.map((supplier) => (
-                <motion.tr
-                  key={supplier.id}
-                  variants={itemVariants}
-                  component={TableRow}
-                  className="table-row-3d"
-                  sx={{ 
-                    '&:hover': { 
-                      backgroundColor: 'rgba(242, 242, 247, 0.5)' 
-                    } 
-                  }}
-                >
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar 
-                        sx={{ 
-                          backgroundColor: 'primary.light',
-                          color: 'primary.main',
-                          fontWeight: 'bold',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                        }}
-                      >
-                        {supplier.name.substring(0, 1)}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                          {supplier.name}
-                        </Typography>
-                        
+      {loading && suppliers.length === 0 ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="data-table-3d"
+          style={{ borderRadius: '1rem' }}
+        >
+          <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+            <Table>
+              <TableHead sx={{ backgroundColor: 'rgba(242, 242, 247, 0.8)' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Supplier</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Contact</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Status</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {suppliers.map((supplier) => (
+                  <motion.tr
+                    key={supplier.supplierId}
+                    variants={itemVariants}
+                    component={TableRow}
+                    className="table-row-3d"
+                    sx={{ 
+                      '&:hover': { 
+                        backgroundColor: 'rgba(242, 242, 247, 0.5)' 
+                      } 
+                    }}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar 
+                          sx={{ 
+                            backgroundColor: 'primary.light',
+                            color: 'primary.main',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                          }}
+                        >
+                          {supplier.name.substring(0, 1)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                            {supplier.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {supplier.address}
+                          </Typography>
+                        </Box>
                       </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                        {supplier.email}
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <EmailIcon fontSize="small" color="action" />
+                          <Typography variant="body2">
+                            {supplier.contactEmail}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PhoneIcon fontSize="small" color="action" />
+                          <Typography variant="body2">
+                            {supplier.contactPhone}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={supplier.active ? "Active" : "Inactive"} 
+                        color={supplier.active ? "success" : "error"}
+                        size="small"
+                        icon={supplier.active ? <CheckIcon /> : <CloseIcon />}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                        <Tooltip title="Edit Supplier" arrow>
+                          <IconButton 
+                            size="small" 
+                            color="primary"
+                            onClick={() => handleOpenDialog(supplier)}
+                            className="btn-3d"
+                            sx={{ 
+                              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                              '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={supplier.active ? "Deactivate Supplier" : "Activate Supplier"} arrow>
+                          <IconButton 
+                            size="small" 
+                            color={supplier.active ? "error" : "success"}
+                            onClick={() => handleDelete(supplier.supplierId)}
+                            className="btn-3d"
+                            sx={{ 
+                              backgroundColor: supplier.active 
+                                ? 'rgba(239, 68, 68, 0.1)' 
+                                : 'rgba(34, 197, 94, 0.1)',
+                              '&:hover': { 
+                                backgroundColor: supplier.active 
+                                  ? 'rgba(239, 68, 68, 0.2)' 
+                                  : 'rgba(34, 197, 94, 0.2)' 
+                              }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </motion.tr>
+                ))}
+                {suppliers.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                      <Typography variant="body1" color="text.secondary">
+                        No suppliers found
                       </Typography>
-                    </Box>
-                  </TableCell>
-
-                  <TableCell align="right">
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                      <Tooltip title="Edit Supplier" arrow>
-                        <IconButton 
-                          size="small" 
-                          color="primary"
-                          onClick={() => handleOpenDialog(supplier)}
-                          className="btn-3d"
-                          sx={{ 
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
-                          }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Supplier" arrow>
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={() => handleDelete(supplier.id)}
-                          className="btn-3d"
-                          sx={{ 
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                </motion.tr>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </motion.div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </motion.div>
+      )}
 
       <Dialog 
         open={open} 
@@ -412,9 +459,10 @@ const SupplierManagement = () => {
                 <TextField
                   fullWidth
                   margin="normal"
-                  label="Contact Person"
-                  name="contact"
-                  value={formData.contact}
+                  label="Contact Email"
+                  name="contactEmail"
+                  type="email"
+                  value={formData.contactEmail}
                   onChange={handleChange}
                   className="input-3d"
                   variant="outlined"
@@ -434,10 +482,9 @@ const SupplierManagement = () => {
                 <TextField
                   fullWidth
                   margin="normal"
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
+                  label="Contact Phone"
+                  name="contactPhone"
+                  value={formData.contactPhone}
                   onChange={handleChange}
                   className="input-3d"
                   variant="outlined"
@@ -453,7 +500,41 @@ const SupplierManagement = () => {
                   }}
                 />
               </Grid>
-              
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="input-3d"
+                  variant="outlined"
+                  required
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#6366f1',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.active}
+                      onChange={handleChange}
+                      name="active"
+                      color="primary"
+                    />
+                  }
+                  label="Active"
+                />
+              </Grid>
             </Grid>
             
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
@@ -478,6 +559,7 @@ const SupplierManagement = () => {
                 variant="contained" 
                 type="submit"
                 className="btn-3d btn-3d-primary"
+                disabled={loading}
                 sx={{ 
                   borderRadius: 2,
                   textTransform: 'none',
@@ -486,12 +568,27 @@ const SupplierManagement = () => {
                   boxShadow: '0 4px 10px rgba(99, 102, 241, 0.3)'
                 }}
               >
-                {editMode ? 'Update Supplier' : 'Add Supplier'}
+                {loading ? <CircularProgress size={24} /> : (editMode ? 'Update Supplier' : 'Add Supplier')}
               </Button>
             </Box>
           </Box>
         </DialogContent>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
