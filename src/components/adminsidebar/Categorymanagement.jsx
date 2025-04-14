@@ -29,6 +29,7 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import adminService from "../../services/adminService";
+import { alpha } from "@mui/material/styles";
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
