@@ -1,8 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
   TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
   Typography,
   FormControl,
   InputLabel,
@@ -10,143 +21,161 @@ import {
   MenuItem,
   Alert,
   Snackbar,
-  Paper,
+  CircularProgress,
   Grid,
   Card,
   CardContent,
   Divider,
   Tabs,
   Tab,
-  CircularProgress,
   Avatar
 } from '@mui/material';
-import { 
-  Add as AddIcon, 
-  Payment as PaymentIcon,
-  Check as CheckIcon,
-  Close as CloseIcon
-} from '@mui/icons-material';
+import { Edit, Add, LocalShipping, Check, Close } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import managerService from '../../../services/managerService';
 
-const PaymentManagement = () => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [formData, setFormData] = useState({
-    orderId: '',
-    amount: '',
-    orderType: '',
-    status: 'PENDING'
-  });
-  const [paymentId, setPaymentId] = useState('');
+const SupplierOrderManagement = () => {
+  const [orders, setOrders] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'info'
+    severity: 'success'
   });
-  const [selectedPayment, setSelectedPayment] = useState(null);
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-    setSelectedPayment(null);
-    setFormData({
-      orderId: '',
-      amount: '',
-      orderType: '',
-      status: 'PENDING'
-    });
-    setPaymentId('');
-  };
+  const [formData, setFormData] = useState({
+    supplierId: '',
+    totalAmount: '',
+    status: 'PENDING'
+  });
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  const [activeTab, setActiveTab] = useState(0);
+  const [orderId, setOrderId] = useState('');
 
-  const handleAddPayment = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    fetchOrders();
+    fetchSuppliers();
+  }, []);
+
+  const fetchOrders = async () => {
     setIsLoading(true);
-
     try {
-      const response = await managerService.addPayment({
-        ...formData,
-        amount: parseFloat(formData.amount)
-      });
-      setSnackbar({ open: true, message: 'Payment added successfully', severity: 'success' });
-      setFormData({
-        orderId: '',
-        amount: '',
-        orderType: '',
-        status: 'PENDING'
-      });
+      const response = await managerService.getSupplierOrders();
+      setOrders(response.data || []);
     } catch (error) {
-      setSnackbar({ open: true, message: error.message || 'Error adding payment', severity: 'error' });
+      console.error('Error fetching orders:', error);
+      showSnackbar(error.response?.data?.message || 'Error fetching orders', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGetPayment = async () => {
-    if (!paymentId) {
-      setSnackbar({ open: true, message: 'Please enter a payment ID', severity: 'warning' });
+  const fetchSuppliers = async () => {
+    try {
+      const response = await managerService.getAllSuppliers();
+      setSuppliers(response.data || []);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      showSnackbar(error.response?.data?.message || 'Error fetching suppliers', 'error');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.supplierId || !formData.totalAmount) {
+      showSnackbar('Please fill in all required fields', 'error');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      const response = await managerService.getPayment(paymentId);
-      if (response.data) {
-        setSelectedPayment(response.data);
-        setFormData({
-          orderId: response.data.orderId,
-          amount: response.data.amount.toString(),
-          orderType: response.data.orderType,
-          status: response.data.status
-        });
+      const orderData = {
+        supplierId: formData.supplierId,
+        totalAmount: parseFloat(formData.totalAmount)
+      };
+
+      if (selectedOrder) {
+        await managerService.updateSupplierOrderStatus(selectedOrder.id, formData.status);
+        showSnackbar('Order updated successfully', 'success');
+      } else {
+        await managerService.addSupplierOrder(orderData);
+        showSnackbar('Order added successfully', 'success');
       }
+      setOpen(false);
+      resetForm();
+      fetchOrders();
     } catch (error) {
-      setSnackbar({ open: true, message: error.message || 'Error fetching payment', severity: 'error' });
+      console.error('Error processing order:', error);
+      showSnackbar(error.response?.data?.message || 'Error processing order', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleUpdatePayment = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const resetForm = () => {
+    setFormData({
+      supplierId: '',
+      totalAmount: '',
+      status: 'PENDING'
+    });
+    setEditMode(false);
+    setSelectedOrder(null);
+  };
 
+  const showSnackbar = (message, severity) => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return 'warning';
+      case 'COMPLETED':
+        return 'success';
+      case 'CANCELLED':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
+  const handleGetOrder = async () => {
+    setIsLoading(true);
     try {
-      const response = await managerService.updatePayment({
-        ...formData,
-        paymentId: selectedPayment.paymentId,
-        amount: parseFloat(formData.amount)
+      const response = await managerService.getSupplierOrder(orderId);
+      setSelectedOrder(response.data);
+      setFormData({
+        supplierId: response.data.supplierId,
+        totalAmount: response.data.totalAmount,
+        status: response.data.status
       });
-      setSnackbar({ open: true, message: 'Payment updated successfully', severity: 'success' });
-      handleGetPayment(); // Refresh the payment details
+      setEditMode(true);
+      setOpen(true);
     } catch (error) {
-      setSnackbar({ open: true, message: error.message || 'Error updating payment', severity: 'error' });
+      console.error('Error fetching order:', error);
+      showSnackbar(error.response?.data?.message || 'Error fetching order', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
-  };
-
-  const handleReset = () => {
-    setFormData({
-      orderId: '',
-      amount: '',
-      orderType: '',
-      status: 'PENDING'
+    setSnackbar({
+      ...snackbar,
+      open: false
     });
-    setPaymentId('');
-    setSelectedPayment(null);
   };
 
   return (
@@ -160,7 +189,7 @@ const PaymentManagement = () => {
           mb: 4 
         }}
       >
-        <PaymentIcon 
+        <LocalShipping 
           sx={{ 
             fontSize: 32, 
             color: 'primary.main',
@@ -180,7 +209,7 @@ const PaymentManagement = () => {
             WebkitTextFillColor: 'transparent'
           }}
         >
-          Payment Management
+          Supplier Order Management
         </Typography>
       </Box>
 
@@ -201,8 +230,8 @@ const PaymentManagement = () => {
           },
         }}
       >
-        <Tab label="Add New Payment" />
-        <Tab label="View/Update Payment" />
+        <Tab label="Add New Order" />
+        <Tab label="View/Update Order" />
       </Tabs>
 
       {activeTab === 0 && (
@@ -216,16 +245,16 @@ const PaymentManagement = () => {
                   WebkitTextFillColor: 'transparent',
                   fontWeight: 'bold'
                 }}>
-                  Add New Payment
+                  Add New Supplier Order
                 </Typography>
-                <Box component="form" onSubmit={handleAddPayment}>
+                <Box component="form" onSubmit={handleSubmit}>
                   <Grid container spacing={2}>
                     <Grid item xs={12}>
                       <TextField
-                        label="Order ID"
-                        name="orderId"
-                        value={formData.orderId}
-                        onChange={handleChange}
+                        label="Supplier ID"
+                        name="supplierId"
+                        value={formData.supplierId}
+                        onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
                         required
                         fullWidth
                         className="input-3d"
@@ -243,11 +272,11 @@ const PaymentManagement = () => {
 
                     <Grid item xs={12}>
                       <TextField
-                        label="Amount"
-                        name="amount"
+                        label="Total Amount"
+                        name="totalAmount"
                         type="number"
-                        value={formData.amount}
-                        onChange={handleChange}
+                        value={formData.totalAmount}
+                        onChange={(e) => setFormData({...formData, totalAmount: e.target.value})}
                         required
                         fullWidth
                         className="input-3d"
@@ -266,35 +295,11 @@ const PaymentManagement = () => {
 
                     <Grid item xs={12}>
                       <FormControl fullWidth>
-                        <InputLabel>Order Type</InputLabel>
-                        <Select
-                          name="orderType"
-                          value={formData.orderType}
-                          onChange={handleChange}
-                          label="Order Type"
-                          required
-                          className="input-3d"
-                          sx={{ 
-                            borderRadius: 2,
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#6366f1',
-                              borderWidth: 2
-                            }
-                          }}
-                        >
-                          <MenuItem value="Supplier">Supplier</MenuItem>
-                          <MenuItem value="Customer">Customer</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <FormControl fullWidth>
                         <InputLabel>Status</InputLabel>
                         <Select
                           name="status"
                           value={formData.status}
-                          onChange={handleChange}
+                          onChange={(e) => setFormData({...formData, status: e.target.value})}
                           label="Status"
                           required
                           className="input-3d"
@@ -335,12 +340,12 @@ const PaymentManagement = () => {
                               px: 3
                             }}
                           >
-                            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Add Payment'}
+                            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Add Order'}
                           </Button>
                         </motion.div>
                         <Button
                           variant="outlined"
-                          onClick={handleReset}
+                          onClick={resetForm}
                           disabled={isLoading}
                           className="btn-3d"
                           sx={{ 
@@ -377,14 +382,14 @@ const PaymentManagement = () => {
                   WebkitTextFillColor: 'transparent',
                   fontWeight: 'bold'
                 }}>
-                  View/Update Payment
+                  View/Update Supplier Order
                 </Typography>
                 <Box sx={{ mb: 3 }}>
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     <TextField
-                      label="Payment ID"
-                      value={paymentId}
-                      onChange={(e) => setPaymentId(e.target.value)}
+                      label="Order ID"
+                      value={orderId}
+                      onChange={(e) => setOrderId(e.target.value)}
                       fullWidth
                       className="input-3d"
                       sx={{ 
@@ -403,7 +408,7 @@ const PaymentManagement = () => {
                     >
                       <Button
                         variant="contained"
-                        onClick={handleGetPayment}
+                        onClick={handleGetOrder}
                         disabled={isLoading}
                         className="btn-3d btn-3d-primary"
                         sx={{ 
@@ -416,22 +421,22 @@ const PaymentManagement = () => {
                           px: 3
                         }}
                       >
-                        {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Get Payment'}
+                        {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Get Order'}
                       </Button>
                     </motion.div>
                   </Box>
                 </Box>
 
-                {selectedPayment && (
+                {selectedOrder && (
                   <>
-                    <Box component="form" onSubmit={handleUpdatePayment}>
+                    <Box component="form" onSubmit={handleSubmit}>
                       <Grid container spacing={2}>
                         <Grid item xs={12}>
                           <TextField
-                            label="Order ID"
-                            name="orderId"
-                            value={formData.orderId}
-                            onChange={handleChange}
+                            label="Supplier ID"
+                            name="supplierId"
+                            value={formData.supplierId}
+                            onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
                             required
                             fullWidth
                             className="input-3d"
@@ -449,11 +454,11 @@ const PaymentManagement = () => {
 
                         <Grid item xs={12}>
                           <TextField
-                            label="Amount"
-                            name="amount"
+                            label="Total Amount"
+                            name="totalAmount"
                             type="number"
-                            value={formData.amount}
-                            onChange={handleChange}
+                            value={formData.totalAmount}
+                            onChange={(e) => setFormData({...formData, totalAmount: e.target.value})}
                             required
                             fullWidth
                             className="input-3d"
@@ -472,35 +477,11 @@ const PaymentManagement = () => {
 
                         <Grid item xs={12}>
                           <FormControl fullWidth>
-                            <InputLabel>Order Type</InputLabel>
-                            <Select
-                              name="orderType"
-                              value={formData.orderType}
-                              onChange={handleChange}
-                              label="Order Type"
-                              required
-                              className="input-3d"
-                              sx={{ 
-                                borderRadius: 2,
-                                '&.Mui-focused fieldset': {
-                                  borderColor: '#6366f1',
-                                  borderWidth: 2
-                                }
-                              }}
-                            >
-                              <MenuItem value="Supplier">Supplier</MenuItem>
-                              <MenuItem value="Customer">Customer</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                          <FormControl fullWidth>
                             <InputLabel>Status</InputLabel>
                             <Select
                               name="status"
                               value={formData.status}
-                              onChange={handleChange}
+                              onChange={(e) => setFormData({...formData, status: e.target.value})}
                               label="Status"
                               required
                               className="input-3d"
@@ -541,12 +522,12 @@ const PaymentManagement = () => {
                                   px: 3
                                 }}
                               >
-                                {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Update Payment'}
+                                {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Update Order'}
                               </Button>
                             </motion.div>
                             <Button
                               variant="outlined"
-                              onClick={handleReset}
+                              onClick={resetForm}
                               disabled={isLoading}
                               className="btn-3d"
                               sx={{ 
@@ -575,7 +556,7 @@ const PaymentManagement = () => {
                       WebkitTextFillColor: 'transparent',
                       fontWeight: 'bold'
                     }}>
-                      Payment Details
+                      Order Details
                     </Typography>
                     <Grid container spacing={2}>
                       <Grid item xs={12}>
@@ -588,32 +569,32 @@ const PaymentManagement = () => {
                               boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                             }}
                           >
-                            {selectedPayment.orderType?.substring(0, 1)}
+                            S
                           </Avatar>
                           <Box>
                             <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                              Payment ID: {selectedPayment.paymentId}
+                              Order ID: {selectedOrder.orderId}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {selectedPayment.orderType} Order
+                              Supplier Order
                             </Typography>
                           </Box>
                         </Box>
                       </Grid>
                       <Grid item xs={12}>
                         <Typography variant="subtitle2" color="text.secondary">
-                          Order ID
+                          Supplier ID
                         </Typography>
                         <Typography variant="body1">
-                          {selectedPayment.orderId}
+                          {selectedOrder.supplierId}
                         </Typography>
                       </Grid>
                       <Grid item xs={12}>
                         <Typography variant="subtitle2" color="text.secondary">
-                          Amount
+                          Total Amount
                         </Typography>
                         <Typography variant="body1">
-                          ${selectedPayment.amount?.toFixed(2)}
+                          ${selectedOrder.totalAmount?.toFixed(2)}
                         </Typography>
                       </Grid>
                       <Grid item xs={12}>
@@ -623,19 +604,19 @@ const PaymentManagement = () => {
                         <Typography 
                           variant="body1"
                           sx={{
-                            color: selectedPayment.status === 'COMPLETED' ? 'success.main' : 'warning.main',
+                            color: selectedOrder.status === 'COMPLETED' ? 'success.main' : 'warning.main',
                             fontWeight: 'bold'
                           }}
                         >
-                          {selectedPayment.status}
+                          {selectedOrder.status}
                         </Typography>
                       </Grid>
                       <Grid item xs={12}>
                         <Typography variant="subtitle2" color="text.secondary">
-                          Payment Date
+                          Order Date
                         </Typography>
                         <Typography variant="body1">
-                          {new Date(selectedPayment.paymentDate).toLocaleString()}
+                          {new Date(selectedOrder.orderDate).toLocaleString()}
                         </Typography>
                       </Grid>
                     </Grid>
@@ -665,4 +646,4 @@ const PaymentManagement = () => {
   );
 };
 
-export default PaymentManagement;
+export default SupplierOrderManagement; 
