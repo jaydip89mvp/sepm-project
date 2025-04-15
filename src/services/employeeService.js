@@ -98,9 +98,9 @@ const employeeService = {
         }
     },
     // Get low stock products
-    getLowStockProducts: async () => {
+    getLowStockalert: async () => {
         try {
-            const response = await axiosInstance.get('/getlowstockproducts');
+            const response = await axiosInstance.get('/getlowstockalert');
             return {
                 success: true,
                 data: response.data
@@ -158,7 +158,7 @@ const employeeService = {
                 subCategory: productData.subCategory || '',
                 stockLevel: parseInt(productData.stockLevel) || 0,
                 reorderLevel: parseInt(productData.reorderLevel) || 0,
-                active: productData.active !== undefined ? productData.active : true
+
             };
 
             const response = await axiosInstance.put('/updateproduct', formattedProduct);
@@ -200,7 +200,7 @@ const employeeService = {
                 status: 'PENDING'
             };
 
-            const response = await axiosInstance.post('/addRefillRequest', formattedRefill);
+            const response = await axiosInstance.post('/addrefillrequest', formattedRefill);
             return {
                 success: true,
                 data: response.data,

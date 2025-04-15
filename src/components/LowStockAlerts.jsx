@@ -10,11 +10,9 @@ import {
   Paper,
   CircularProgress,
   Divider,
-  Button,
   Grid,
   Card,
   CardContent,
-  CardActions,
   Alert,
   Snackbar,
   IconButton,
@@ -27,11 +25,10 @@ import {
   LocalShipping,
   Refresh,
   TrendingDown,
-  TrendingUp,
   CheckCircle,
   Error
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import employeeService from '../services/employeeService';
 
@@ -51,7 +48,7 @@ const LowStockAlerts = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await employeeService.getLowStockAlerts();
+      const response = await employeeService.getLowStockalert();
       if (response.success) {
         setLowStockProducts(response.data);
       } else {
@@ -67,10 +64,6 @@ const LowStockAlerts = () => {
 
   const handleRefresh = () => {
     fetchLowStockAlerts();
-  };
-
-  const handleRequestStock = (productId) => {
-    navigate('/request-stock', { state: { productId } });
   };
 
   const handleCloseSnackbar = () => {
@@ -218,25 +211,6 @@ const LowStockAlerts = () => {
                         </Typography>
                       </Box>
                     </CardContent>
-                    <CardActions sx={{ p: 2, pt: 0 }}>
-                      <Button 
-                        variant="contained" 
-                        color="primary"
-                        startIcon={<TrendingUp />}
-                        onClick={() => handleRequestStock(product.productId)}
-                        sx={{ 
-                          borderRadius: '8px',
-                          textTransform: 'none',
-                          fontWeight: 600,
-                          boxShadow: '0px 4px 10px rgba(79, 70, 229, 0.3)',
-                          '&:hover': {
-                            boxShadow: '0px 6px 15px rgba(79, 70, 229, 0.4)',
-                          }
-                        }}
-                      >
-                        Request Stock
-                      </Button>
-                    </CardActions>
                   </Card>
                 </motion.div>
               </Grid>
@@ -265,7 +239,7 @@ const LowStockAlerts = () => {
           </Typography>
           <Box className="alert-3d" sx={{ mt: 2 }}>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              To request more stock, click the "Request Stock" button on any product card to notify suppliers.
+              Monitor these products closely to ensure timely restocking.
             </Typography>
           </Box>
         </Paper>
