@@ -221,13 +221,13 @@ const PaymentManagement = () => {
                 <Box component="form" onSubmit={handleAddPayment}>
                   <Grid container spacing={2}>
                     <Grid item xs={12}>
-                      <TextField
+            <TextField
                         label="Order ID"
                         name="orderId"
                         value={formData.orderId}
                         onChange={handleChange}
-                        required
-                        fullWidth
+              required
+              fullWidth
                         className="input-3d"
                         sx={{ 
                           '& .MuiOutlinedInput-root': {
@@ -243,9 +243,9 @@ const PaymentManagement = () => {
 
                     <Grid item xs={12}>
                       <TextField
-                        label="Amount"
+              label="Amount"
                         name="amount"
-                        type="number"
+              type="number"
                         value={formData.amount}
                         onChange={handleChange}
                         required
@@ -291,7 +291,7 @@ const PaymentManagement = () => {
                     <Grid item xs={12}>
                       <FormControl fullWidth>
                         <InputLabel>Status</InputLabel>
-                        <Select
+              <Select
                           name="status"
                           value={formData.status}
                           onChange={handleChange}
@@ -308,8 +308,8 @@ const PaymentManagement = () => {
                         >
                           <MenuItem value="PENDING">Pending</MenuItem>
                           <MenuItem value="COMPLETED">Completed</MenuItem>
-                        </Select>
-                      </FormControl>
+              </Select>
+            </FormControl>
                     </Grid>
 
                     <Grid item xs={12}>
@@ -448,14 +448,14 @@ const PaymentManagement = () => {
                         </Grid>
 
                         <Grid item xs={12}>
-                          <TextField
+            <TextField
                             label="Amount"
                             name="amount"
                             type="number"
                             value={formData.amount}
                             onChange={handleChange}
-                            required
-                            fullWidth
+              required
+              fullWidth
                             className="input-3d"
                             InputProps={{ inputProps: { min: 0, step: 0.01 } }}
                             sx={{ 
@@ -496,12 +496,12 @@ const PaymentManagement = () => {
 
                         <Grid item xs={12}>
                           <FormControl fullWidth>
-                            <InputLabel>Status</InputLabel>
-                            <Select
+                <InputLabel>Status</InputLabel>
+                <Select
                               name="status"
                               value={formData.status}
                               onChange={handleChange}
-                              label="Status"
+                  label="Status"
                               required
                               className="input-3d"
                               sx={{ 
@@ -514,8 +514,8 @@ const PaymentManagement = () => {
                             >
                               <MenuItem value="PENDING">Pending</MenuItem>
                               <MenuItem value="COMPLETED">Completed</MenuItem>
-                            </Select>
-                          </FormControl>
+                </Select>
+              </FormControl>
                         </Grid>
 
                         <Grid item xs={12}>
@@ -524,12 +524,12 @@ const PaymentManagement = () => {
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
                             >
-                              <Button
+            <Button
                                 type="submit"
                                 variant="contained"
                                 color="primary"
                                 disabled={isLoading}
-                                fullWidth
+              fullWidth
                                 className="btn-3d btn-3d-primary"
                                 sx={{ 
                                   background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
@@ -547,7 +547,7 @@ const PaymentManagement = () => {
                             <Button
                               variant="outlined"
                               onClick={handleReset}
-                              disabled={isLoading}
+              disabled={isLoading}
                               className="btn-3d"
                               sx={{ 
                                 borderRadius: 2,
@@ -561,8 +561,8 @@ const PaymentManagement = () => {
                               }}
                             >
                               Reset
-                            </Button>
-                          </Box>
+            </Button>
+          </Box>
                         </Grid>
                       </Grid>
                     </Box>
@@ -653,7 +653,7 @@ const PaymentManagement = () => {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert
+        <Alert 
           onClose={handleCloseSnackbar}
           severity={snackbar.severity}
           sx={{ width: '100%' }}

@@ -6,7 +6,8 @@ import {
     Payment as PaymentIcon,
     Category as CategoryIcon,
     Assessment as ReportIcon,
-    Logout as LogoutIcon
+    Logout as LogoutIcon,
+    ShoppingCart as ShoppingCartIcon
 } from '@mui/icons-material';
 
 import { useDispatch } from 'react-redux';
@@ -14,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { logout } from '../../redux/reducer/auth';
 import { authService } from '../../services/authService';
 import Dock from './Dock';
+import SupplierOrderManagement from './sections/SupplierOrderManagement';
 
 // Lazy load section components
 const EmployeeManagement = lazy(() => import('./sections/EmployeeManagement'));
@@ -51,6 +53,8 @@ const ManagerDashboard = () => {
                 return <EmployeeManagement />;
             case 'orderManagement':
                 return <OrderManagement />;
+            case 'supplierOrderManagement':
+                return <SupplierOrderManagement />;
             case 'paymentManagement':
                 return <PaymentManagement />;
             case 'categoryManagement':
@@ -74,6 +78,12 @@ const ManagerDashboard = () => {
             label: 'Orders', 
             onClick: () => setSelectedItem('orderManagement'), 
             className: selectedItem === 'orderManagement' ? 'active-dock-item' : '' 
+        },
+        { 
+            icon: <ShoppingCartIcon />,
+            label: 'Supplier Orders',
+            onClick: () => setSelectedItem('supplierOrderManagement'),
+            className: selectedItem === 'supplierOrderManagement' ? 'active-dock-item' : ''
         },
         { 
             icon: <PaymentIcon />, 

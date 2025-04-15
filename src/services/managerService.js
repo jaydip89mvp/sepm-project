@@ -58,8 +58,13 @@ const managerService = {
 
     addCategory: async (category) => {
         try {
-            const response = await axiosInstance.post('/addcategories', category);
-            return response.data;
+            const roleData = {
+                id: null,  // MongoDB will generate this
+                name: category.name, // The backend will prefix with EMPLOYEE_
+                addedby: null  // The backend will set this
+            };
+            const response = await axiosInstance.post('/addcategories', roleData);
+            return response;
         } catch (error) {
             console.error('Error adding category:', error);
             throw error;
@@ -81,8 +86,12 @@ const managerService = {
             email: employee.email,
             password: employee.password,
             contact: employee.contact,
-            salary: parseFloat(employee.salary || 0.0)
-            // Role will be set to EMPLOYEE by default in backend
+            salary: parseFloat(employee.salary || 0.0),
+            assigned: {
+                id: employee.role._id,
+                name: employee.role.name,
+                addedby: employee.role.addedby
+            }
         };
         return axiosInstance.post('/addemployee', formattedEmployee);
     },
@@ -91,8 +100,12 @@ const managerService = {
         const formattedEmployee = {
             email: employee.email,
             contact: employee.contact,
-            salary: parseFloat(employee.salary || 0.0)
-            // Role is not updated as it's set by default
+            salary: parseFloat(employee.salary || 0.0),
+            assigned: {
+                id: employee.role._id,
+                name: employee.role.name,
+                addedby: employee.role.addedby
+            }
         };
         return axiosInstance.put('/updateEmployee', formattedEmployee);
     },
@@ -109,63 +122,40 @@ const managerService = {
         return axiosInstance.put(`/deleteemployee?email=${email}`);
     },
 
-    // Supplier Management
-    getAllSuppliers: () => {
-        return axiosInstance.get('/admin/getsuppliers');
-    },
-
-    getSupplier: (id) => {
-        return axiosInstance.get(`/admin/getsupplier/${id}`);
-    },
 
     // Supplier Order Management
     addSupplierOrder: (order) => {
-        // The order data is already formatted in the component
-        return axiosInstance.post('/supplierorder/addorder', order);
+        const formattedOrder = {
+            ...order,
+            status: order.status || 'Pending'  // Ensure default status is set
+        };
+        return axiosInstance.post('/supplierorder/addorder', formattedOrder);
     },
 
-    getSupplierOrders: () => {
-        return axiosInstance.get('/supplierorder/getorders');
-    },
-
-    getSupplierOrder: (id) => {
-        return axiosInstance.get(`/supplierorder/get/${id}`);
+    getSupplierOrders: (status = 'ALL') => {
+        return axiosInstance.post('/supplierorder/getorders', { 
+            status: status === 'ALL' ? status : status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+        });
     },
 
     updateSupplierOrderStatus: (id, status) => {
+        // Ensure status is properly capitalized
+        const formattedStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
         return axiosInstance.put('/supplierorder/updatestatus', {
             id,
-            status
+            status: formattedStatus
         });
     },
 
-    deleteSupplierOrder: (id) => {
-        return axiosInstance.delete(`/supplierorder/delete/${id}`);
-    },
 
-    // Customer Management
-    getAllCustomers: () => {
-        return axiosInstance.get('/admin/getcustomers');
-    },
-
-    getCustomer: (id) => {
-        return axiosInstance.get(`/admin/getcustomer/${id}`);
-    },
 
     // Customer Order Management
     addCustomerOrder: (order) => {
-        return axiosInstance.post('/customerorder/add', {
-            customerId: order.customerId,
-            totalAmount: order.totalAmount
-        });
+        return axiosInstance.post('/customerorder/add', order);
     },
 
-    getCustomerOrders: () => {
-        return axiosInstance.get('/customerorder/getorders');
-    },
-
-    getCustomerOrder: (id) => {
-        return axiosInstance.get(`/customerorder/get/${id}`);
+    getCustomerOrders: (status = 'ALL') => {
+        return axiosInstance.post('/customerorder/getorders', { status });
     },
 
     updateCustomerOrderStatus: (id, status) => {
@@ -173,10 +163,6 @@ const managerService = {
             id,
             status
         });
-    },
-
-    deleteCustomerOrder: (id) => {
-        return axiosInstance.delete(`/customerorder/delete/${id}`);
     },
 
     // Payment Management

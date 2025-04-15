@@ -43,7 +43,7 @@ const EmployeeManagement = () => {
     password: '',
     contact: '',
     salary: '',
-    role: ''
+    role: null
   });
   const [isLoading, setIsLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -63,10 +63,16 @@ const EmployeeManagement = () => {
     try {
       setIsLoading(true);
       const response = await managerService.getAllEmployees();
-      setEmployees(response.data || []);
+      if (response && response.data) {
+        setEmployees(response.data);
+      } else {
+        showSnackbar('Error: Invalid response format', 'error');
+        setEmployees([]);
+      }
     } catch (error) {
       console.error('Error fetching employees:', error);
       showSnackbar(error.response?.data?.message || 'Error fetching employees', 'error');
+      setEmployees([]);
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +81,13 @@ const EmployeeManagement = () => {
   const fetchRoles = async () => {
     try {
       const response = await managerService.getEmployeeRoles();
-      setRoles(response.data || []);
+      if (response.data) {
+        setRoles(response.data.map(role => ({
+          _id: role.id,
+          name: role.name,
+          addedby: role.addedby
+        })));
+      }
     } catch (error) {
       console.error('Error fetching roles:', error);
       showSnackbar('Error fetching employee roles', 'error');
@@ -84,26 +96,60 @@ const EmployeeManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email || !formData.contact || (!selectedEmployee && !formData.password)) {
+    if (!formData.email || !formData.contact || !formData.role || (!selectedEmployee && !formData.password)) {
       showSnackbar('Please fill in all required fields', 'error');
       return;
     }
-
+    
     setIsLoading(true);
     try {
+      const employeeData = {
+        email: formData.email,
+        password: formData.password,
+        contact: formData.contact,
+        salary: parseFloat(formData.salary || 0.0),
+        role: {
+          _id: formData.role._id,
+          name: formData.role.name,
+          addedby: formData.role.addedby
+        },
+        active: true
+      };
+
+      let response;
       if (selectedEmployee) {
-        await managerService.updateEmployee(formData);
-        showSnackbar('Employee updated successfully', 'success');
+        const { password, ...updateData } = employeeData;
+        response = await managerService.updateEmployee(updateData);
+        if (response.data === "Employee has been updated") {
+          showSnackbar('Employee updated successfully', 'success');
+        } else {
+          throw new Error(response.data || 'Failed to update employee');
+        }
       } else {
-        await managerService.addEmployee(formData);
-        showSnackbar('Employee added successfully', 'success');
+        response = await managerService.addEmployee(employeeData);
+        if (response.data === "Employee has been added") {
+          showSnackbar('Employee added successfully', 'success');
+        } else {
+          throw new Error(response.data || 'Failed to add employee');
+        }
       }
+      
       setOpen(false);
       resetForm();
-      fetchEmployees();
+      await fetchEmployees();
     } catch (error) {
       console.error('Error processing employee:', error);
-      showSnackbar(error.response?.data?.message || 'Error processing employee', 'error');
+      if (error.response?.status === 409) {
+        showSnackbar('Employee with this email already exists', 'error');
+      } else if (error.response?.status === 400) {
+        showSnackbar('Invalid data format. Please check all fields.', 'error');
+      } else if (error.response?.status === 403) {
+        showSnackbar('Access denied. You do not have permission to perform this action.', 'error');
+      } else if (error.response?.status === 404) {
+        showSnackbar('Employee not found', 'error');
+      } else {
+        showSnackbar(error.response?.data?.message || error.message || 'Error processing employee', 'error');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +172,7 @@ const EmployeeManagement = () => {
       password: '',
       contact: '',
       salary: '',
-      role: ''
+      role: null
     });
     setSelectedEmployee(null);
   };
@@ -148,6 +194,9 @@ const EmployeeManagement = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+    if (newValue === 0) {
+      resetForm();
+    }
   };
 
   return (
@@ -304,11 +353,27 @@ const EmployeeManagement = () => {
                     </Grid>
                     <Grid item xs={12}>
                       <FormControl fullWidth className="input-3d">
-                        <InputLabel>Role</InputLabel>
+                        <InputLabel id="role-select-label">Role</InputLabel>
                         <Select
-                          value={formData.role}
-                          onChange={(e) => setFormData({...formData, role: e.target.value})}
+                          labelId="role-select-label"
+                          id="role-select"
+                          label="Role"
+                          value={formData.role?._id || ''}
+                          onChange={(e) => {
+                            const selectedRole = roles.find(role => role._id === e.target.value);
+                            setFormData(prev => ({
+                              ...prev,
+                              role: selectedRole
+                            }));
+                          }}
                           required
+                          MenuProps={{
+                            PaperProps: {
+                              sx: {
+                                maxHeight: 300
+                              }
+                            }
+                          }}
                           sx={{ 
                             borderRadius: 2,
                             '&.Mui-focused fieldset': {
@@ -317,11 +382,28 @@ const EmployeeManagement = () => {
                             }
                           }}
                         >
-                          {roles.map((role) => (
-                            <MenuItem key={role.id} value={role.id}>
-                              {role.name.replace('EMPLOYEE_', '')}
+                          {roles && roles.length > 0 ? (
+                            roles.map((role) => (
+                              <MenuItem 
+                                key={role._id} 
+                                value={role._id}
+                                sx={{
+                                  '&:focus': {
+                                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                                  },
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                                  }
+                                }}
+                              >
+                                {role.name.replace('EMPLOYEE_', '')}
+                              </MenuItem>
+                            ))
+                          ) : (
+                            <MenuItem key="no-roles" value="" disabled>
+                              No roles available
                             </MenuItem>
-                          ))}
+                          )}
                         </Select>
                       </FormControl>
                     </Grid>
@@ -403,9 +485,9 @@ const EmployeeManagement = () => {
                         <ListItemText primary="No employees found" />
                       </ListItem>
                     ) : (
-                      employees.map((employee) => (
+                      employees.map((employee, index) => (
                         <ListItem 
-                          key={employee.email}
+                          key={`employee-${employee.email}-${index}`}
                           sx={{
                             backgroundColor: 'rgba(99, 102, 241, 0.05)',
                             borderRadius: 2,
@@ -420,7 +502,29 @@ const EmployeeManagement = () => {
                           </Avatar>
                           <ListItemText 
                             primary={employee.email}
-                            secondary={`Contact: ${employee.contact} | Salary: $${employee.salary}`}
+                            secondary={
+                              <React.Fragment>
+                                <Typography component="span" variant="body2" color="text.primary">
+                                  Contact: {employee.contact}
+                                </Typography>
+                                <br />
+                                <Typography component="span" variant="body2" color="text.primary">
+                                  Salary: ${employee.salary?.toFixed(2) || '0.00'}
+                                </Typography>
+                                <br />
+                                <Typography component="span" variant="body2" color="text.primary">
+                                  Role: {employee.assigned?.name?.replace('EMPLOYEE_', '') || 'Employee'}
+                                </Typography>
+                                <br />
+                                <Typography component="span" variant="body2" color="text.primary">
+                                  Added By: {employee.assigned?.addedby?.name || 'Unknown'}
+                                </Typography>
+                                <br />
+                                <Typography component="span" variant="body2" color={employee.active ? 'success.main' : 'error.main'}>
+                                  Status: {employee.active ? 'Active' : 'Inactive'}
+                                </Typography>
+                              </React.Fragment>
+                            }
                           />
                           <ListItemSecondaryAction>
                             <IconButton 
@@ -432,7 +536,7 @@ const EmployeeManagement = () => {
                                   email: employee.email,
                                   contact: employee.contact,
                                   salary: employee.salary,
-                                  role: employee.role?.id
+                                  role: employee.assigned
                                 });
                                 setActiveTab(0);
                               }}
@@ -460,15 +564,11 @@ const EmployeeManagement = () => {
 
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={6000}
+        autoHideDuration={4000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
