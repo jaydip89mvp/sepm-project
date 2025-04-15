@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import managerService from '../../../services/managerService';
 import {
     Box,
     Button,
@@ -25,154 +24,195 @@ import {
     IconButton,
     Alert,
     Snackbar,
-    Grid
+    Grid,
+    CircularProgress,
+    Card,
+    CardContent,
+    Divider,
+    Avatar
 } from '@mui/material';
-import { Add, Edit } from '@mui/icons-material';
+import { Add, Edit, Delete } from '@mui/icons-material';
+import { Chip } from '@mui/material';
+import managerService from '../../../services/managerService';
+import { motion } from 'framer-motion';
 
 const OrderManagement = () => {
-    const [tabValue, setTabValue] = useState(0);
-    const [openDialog, setOpenDialog] = useState(false);
-    const [orderType, setOrderType] = useState('');
-    const [supplierOrders, setSupplierOrders] = useState([]);
-    const [customerOrders, setCustomerOrders] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [orders, setOrders] = useState([]);
+    const [suppliers, setSuppliers] = useState([]);
+    const [customers, setCustomers] = useState([]);
+    const [open, setOpen] = useState(false);
+    const [editMode, setEditMode] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [orderType, setOrderType] = useState('supplier');
     const [formData, setFormData] = useState({
-        customerId: '',
         supplierId: '',
-        products: [{ productId: '', quantity: 0, price: 0 }],
+        customerId: '',
+        totalAmount: '',
+        profitOnProducts: '',
         status: 'PENDING',
-        totalAmount: 0
+        products: [{ productId: '', quantity: '', priceAtOrder: '', costAtOrder: '' }],
+        orderType: 'Supplier'
     });
+    const [isLoading, setIsLoading] = useState(false);
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: '',
         severity: 'success'
     });
+    const [activeTab, setActiveTab] = useState(0);
 
     useEffect(() => {
         fetchOrders();
-    }, []);
+        if (orderType === 'supplier') {
+            fetchSuppliers();
+        } else {
+            fetchCustomers();
+        }
+    }, [orderType]);
 
     const fetchOrders = async () => {
-        setIsLoading(true);
         try {
-            const [supplierResponse, customerResponse] = await Promise.all([
-                managerService.getSupplierOrders(),
-                managerService.getCustomerOrders()
-            ]);
-            setSupplierOrders(supplierResponse.data);
-            setCustomerOrders(customerResponse.data);
+            setIsLoading(true);
+            let response;
+            if (orderType === 'supplier') {
+                response = await managerService.getSupplierOrders();
+                showSnackbar('Order listing functionality is not available yet. You can still add new orders.', 'info');
+            } else {
+                response = await managerService.getCustomerOrders();
+                showSnackbar('Order listing functionality is not available yet. You can still add new orders.', 'info');
+            }
+            setOrders(response.data || []);
         } catch (error) {
-            showSnackbar(error.response?.data?.message || 'Error fetching orders', 'error');
+            console.error('Error fetching orders:', error);
+            showSnackbar('Error fetching orders. You can still add new orders.', 'error');
+            setOrders([]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleTabChange = (event, newValue) => {
-        setTabValue(newValue);
+    const fetchSuppliers = async () => {
+        // Since managers don't have access to admin endpoints, we'll use manual ID entry
+        setSuppliers([]);
+        showSnackbar('Please enter supplier ID manually', 'info');
     };
 
-    const handleOpenDialog = (type, order = null) => {
-        setOrderType(type);
-        if (order) {
-            setSelectedOrder(order);
-            setFormData(order);
-        } else {
-            setSelectedOrder(null);
-            setFormData({
-                customerId: '',
-                supplierId: '',
-                products: [{ productId: '', quantity: 0, price: 0 }],
-                status: 'PENDING',
-                totalAmount: 0
-            });
+    const fetchCustomers = async () => {
+        // Since managers don't have access to admin endpoints, we'll use manual ID entry
+        setCustomers([]);
+        showSnackbar('Please enter customer ID manually', 'info');
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if ((orderType === 'supplier' ? !formData.supplierId : !formData.customerId) || formData.products.length === 0) {
+            showSnackbar('Please fill in all required fields', 'error');
+            return;
         }
-        setOpenDialog(true);
-    };
 
-    const handleCloseDialog = () => {
-        setOpenDialog(false);
-        setSelectedOrder(null);
-        setFormData({
-            customerId: '',
-            supplierId: '',
-            products: [{ productId: '', quantity: 0, price: 0 }],
-            status: 'PENDING',
-            totalAmount: 0
-        });
-    };
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-    const handleProductChange = (index, field, value) => {
-        const updatedProducts = [...formData.products];
-        updatedProducts[index] = {
-            ...updatedProducts[index],
-            [field]: value
-        };
-        
-        // Calculate total amount
-        const totalAmount = updatedProducts.reduce((sum, product) => 
-            sum + (product.quantity * product.price), 0
+        // Validate all products have required fields
+        const invalidProduct = formData.products.find(product => 
+            !product.productId || 
+            !product.quantity || 
+            !product.priceAtOrder || 
+            !product.costAtOrder
         );
 
-        setFormData(prev => ({
-            ...prev,
-            products: updatedProducts,
-            totalAmount
-        }));
-    };
-
-    const addProductField = () => {
-        setFormData(prev => ({
-            ...prev,
-            products: [...prev.products, { productId: '', quantity: 0, price: 0 }]
-        }));
-    };
-
-    const removeProductField = (index) => {
-        if (formData.products.length > 1) {
-            const updatedProducts = formData.products.filter((_, i) => i !== index);
-            setFormData(prev => ({
-                ...prev,
-                products: updatedProducts
-            }));
+        if (invalidProduct) {
+            showSnackbar('Please fill in all product details', 'error');
+            return;
         }
-    };
 
-    const handleSubmit = async () => {
         setIsLoading(true);
         try {
-            if (selectedOrder) {
-                if (orderType === 'supplier') {
-                    await managerService.updateSupplierOrderStatus(selectedOrder.id, formData.status);
-                } else {
-                    await managerService.updateCustomerOrderStatus(selectedOrder.id, formData.status);
-                }
-                showSnackbar('Order status updated successfully', 'success');
+            if (orderType === 'supplier') {
+                const orderData = {
+                    supplierId: formData.supplierId,
+                    products: formData.products.map(product => ({
+                        productId: product.productId,
+                        quantity: parseInt(product.quantity),
+                        priceAtOrder: parseFloat(product.priceAtOrder),
+                        costAtOrder: parseFloat(product.costAtOrder)
+                    })),
+                    totalAmount: parseFloat(formData.totalAmount)
+                };
+                await managerService.addSupplierOrder(orderData);
+                showSnackbar('Supplier order added successfully', 'success');
             } else {
-                if (orderType === 'supplier') {
-                    await managerService.addSupplierOrder(formData);
-                } else {
-                    await managerService.addCustomerOrder(formData);
-                }
-                showSnackbar('Order created successfully', 'success');
+                const orderData = {
+                    customerId: formData.customerId,
+                    products: formData.products.map(product => ({
+                        productId: product.productId,
+                        quantity: parseInt(product.quantity),
+                        priceAtOrder: parseFloat(product.priceAtOrder),
+                        costAtOrder: parseFloat(product.costAtOrder)
+                    })),
+                    totalAmount: parseFloat(formData.totalAmount),
+                    profitOnProducts: parseFloat(formData.profitOnProducts)
+                };
+                await managerService.addCustomerOrder(orderData);
+                showSnackbar('Customer order added successfully', 'success');
             }
-            handleCloseDialog();
+            setOpen(false);
+            resetForm();
             fetchOrders();
         } catch (error) {
-            showSnackbar(error.response?.data?.message || 'Error processing order', 'error');
+            console.error('Error processing order:', error);
+            showSnackbar(error.response?.data || 'Error processing order', 'error');
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleEdit = (order) => {
+        setSelectedOrder(order);
+        setFormData({
+            ...formData,
+            supplierId: order.supplierId,
+            customerId: order.customerId,
+            totalAmount: order.totalAmount,
+            status: order.status,
+            orderType: order.orderType
+        });
+        setEditMode(true);
+        setOpen(true);
+    };
+
+    const handleStatusUpdate = async (order, newStatus) => {
+        if (!window.confirm(`Are you sure you want to update the order status to ${newStatus}?`)) {
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            if (orderType === 'supplier') {
+                await managerService.updateSupplierOrderStatus(order.orderId, newStatus);
+            } else {
+                await managerService.updateCustomerOrderStatus(order.orderId, newStatus);
+            }
+            showSnackbar('Order status updated successfully', 'success');
+            fetchOrders();
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            const errorMessage = error.response?.data || 'Error updating order status';
+            showSnackbar(errorMessage, 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const resetForm = () => {
+        setFormData({
+            supplierId: '',
+            customerId: '',
+            totalAmount: '',
+            profitOnProducts: '',
+            status: 'PENDING',
+            products: [{ productId: '', quantity: '', priceAtOrder: '', costAtOrder: '' }],
+            orderType: 'Supplier'
+        });
+        setEditMode(false);
+        setSelectedOrder(null);
     };
 
     const showSnackbar = (message, severity) => {
@@ -183,185 +223,607 @@ const OrderManagement = () => {
         });
     };
 
-    const renderOrderTable = (orders, type) => (
-        <TableContainer component={Paper}>
-            <Table>
-                <TableHead>
-                    <TableRow>
-                        <TableCell>Order ID</TableCell>
-                        <TableCell>{type === 'supplier' ? 'Supplier ID' : 'Customer ID'}</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Total Amount</TableCell>
-                        <TableCell>Actions</TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {orders.map((order) => (
-                        <TableRow key={order.id}>
-                            <TableCell>{order.id}</TableCell>
-                            <TableCell>{type === 'supplier' ? order.supplierId : order.customerId}</TableCell>
-                            <TableCell>{order.status}</TableCell>
-                            <TableCell>${order.totalAmount.toFixed(2)}</TableCell>
-                            <TableCell>
-                                <IconButton 
-                                    onClick={() => handleOpenDialog(type, order)}
-                                    disabled={isLoading}
-                                >
-                                    <Edit />
-                                </IconButton>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </TableContainer>
-    );
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'PENDING':
+                return 'warning';
+            case 'COMPLETED':
+                return 'success';
+            case 'CANCELLED':
+                return 'error';
+            default:
+                return 'info';
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this order?')) {
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            if (orderType === 'supplier') {
+                await managerService.deleteSupplierOrder(id);
+            } else {
+                await managerService.deleteCustomerOrder(id);
+            }
+            showSnackbar('Order deleted successfully', 'success');
+            fetchOrders();
+        } catch (error) {
+            console.error('Error deleting order:', error);
+            showSnackbar(error.response?.data?.message || 'Error deleting order', 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleProductChange = (index, field, value) => {
+        const newProducts = [...formData.products];
+        newProducts[index] = {
+            ...newProducts[index],
+            [field]: value
+        };
+        
+        // Calculate total amount and profit whenever quantity, price, or cost changes
+        if (field === 'quantity' || field === 'priceAtOrder' || field === 'costAtOrder') {
+            const total = newProducts.reduce((sum, product) => {
+                const quantity = parseInt(product.quantity || 0);
+                const price = parseFloat(product.priceAtOrder || 0);
+                return sum + (quantity * price);
+            }, 0);
+
+            const totalCost = newProducts.reduce((sum, product) => {
+                const quantity = parseInt(product.quantity || 0);
+                const cost = parseFloat(product.costAtOrder || 0);
+                return sum + (quantity * cost);
+            }, 0);
+
+            const profit = total - totalCost;
+            
+            setFormData({ 
+                ...formData, 
+                products: newProducts,
+                totalAmount: total.toFixed(2),
+                profitOnProducts: profit.toFixed(2)
+            });
+        } else {
+            setFormData({ ...formData, products: newProducts });
+        }
+    };
+
+    const addProduct = () => {
+        setFormData({
+            ...formData,
+            products: [...formData.products, { 
+                productId: '', 
+                quantity: '', 
+                priceAtOrder: '', 
+                costAtOrder: '' 
+            }]
+        });
+    };
+
+    const removeProduct = (index) => {
+        const newProducts = formData.products.filter((_, i) => i !== index);
+        const total = newProducts.reduce((sum, product) => {
+            const quantity = parseInt(product.quantity || 0);
+            const price = parseFloat(product.priceAtOrder || 0);
+            return sum + (quantity * price);
+        }, 0);
+        
+        setFormData({ 
+            ...formData, 
+            products: newProducts,
+            totalAmount: total.toFixed(2)
+        });
+    };
+
+    const handleTabChange = (event, newValue) => {
+        setActiveTab(newValue);
+    };
+
+    const handleChange = (event) => {
+        const { name, value } = event.target;
+        setFormData({
+            ...formData,
+            [name]: value
+        });
+    };
+
+    const handleReset = () => {
+        resetForm();
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({
+            ...snackbar,
+            open: false
+        });
+    };
 
     return (
-        <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h5" color="primary">Order Management</Typography>
+        <Box className="card-3d-soft" sx={{ p: 4, borderRadius: 3, backgroundColor: 'white' }}>
+            <Box 
+                className="section-title" 
+                sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 2, 
+                    mb: 4 
+                }}
+            >
+                <Add 
+                    sx={{ 
+                        fontSize: 32, 
+                        color: 'primary.main',
+                        backgroundColor: 'primary.light',
+                        p: 1,
+                        borderRadius: '50%',
+                        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                    }} 
+                />
+                <Typography 
+                    variant="h4" 
+                    className="section-title"
+                    sx={{ 
+                        fontWeight: 'bold',
+                        background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
+                    }}
+                >
+                    Order Management
+                </Typography>
             </Box>
 
-            <Paper sx={{ width: '100%', mb: 2 }}>
-                <Tabs
-                    value={tabValue}
-                    onChange={handleTabChange}
-                    indicatorColor="primary"
-                    textColor="primary"
-                    centered
-                >
-                    <Tab label="Supplier Orders" />
-                    <Tab label="Customer Orders" />
-                </Tabs>
-
-                <Box sx={{ p: 2 }}>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<Add />}
-                        onClick={() => handleOpenDialog(tabValue === 0 ? 'supplier' : 'customer')}
-                        sx={{ mb: 2 }}
-                    >
-                        New {tabValue === 0 ? 'Supplier' : 'Customer'} Order
-                    </Button>
-
-                    {tabValue === 0 ? 
-                        renderOrderTable(supplierOrders, 'supplier') : 
-                        renderOrderTable(customerOrders, 'customer')}
-                </Box>
-            </Paper>
-
-            <Dialog 
-                open={openDialog} 
-                onClose={handleCloseDialog}
-                maxWidth="md"
-                fullWidth
+            <Tabs 
+                value={activeTab} 
+                onChange={handleTabChange} 
+                sx={{ 
+                    mb: 3,
+                    '& .MuiTabs-indicator': {
+                        background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                    },
+                    '& .MuiTab-root': {
+                        textTransform: 'none',
+                        fontWeight: 'bold',
+                        '&.Mui-selected': {
+                            color: '#4338ca',
+                        },
+                    },
+                }}
             >
-                <DialogTitle>
-                    {selectedOrder ? 'Update Order Status' : `New ${orderType === 'supplier' ? 'Supplier' : 'Customer'} Order`}
-                </DialogTitle>
-                <DialogContent>
-                    {!selectedOrder ? (
-                        <>
-                            <TextField
-                                margin="normal"
-                                name={orderType === 'supplier' ? 'supplierId' : 'customerId'}
-                                label={orderType === 'supplier' ? 'Supplier ID' : 'Customer ID'}
-                                fullWidth
-                                value={orderType === 'supplier' ? formData.supplierId : formData.customerId}
-                                onChange={handleInputChange}
-                                required
-                            />
-                            {formData.products.map((product, index) => (
-                                <Grid container spacing={2} key={index} sx={{ mt: 1 }}>
-                                    <Grid item xs={12} sm={4}>
-                                        <TextField
-                                            fullWidth
-                                            label="Product ID"
-                                            value={product.productId}
-                                            onChange={(e) => handleProductChange(index, 'productId', e.target.value)}
-                                            required
-                                        />
+                <Tab label="Add New Order" />
+                <Tab label="View/Update Order" />
+            </Tabs>
+
+            {activeTab === 0 && (
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <Card className="card-3d" sx={{ borderRadius: 3 }}>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom sx={{ 
+                                    background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    fontWeight: 'bold'
+                                }}>
+                                    Add New Order
+                                </Typography>
+                                <Box component="form" onSubmit={handleSubmit}>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12}>
+                                            <FormControl fullWidth>
+                                                <InputLabel>Order Type</InputLabel>
+                                                <Select
+                                                    name="orderType"
+                                                    value={formData.orderType}
+                                                    onChange={handleChange}
+                                                    label="Order Type"
+                                                    required
+                                                    className="input-3d"
+                                                    sx={{ 
+                                                        borderRadius: 2,
+                                                        '&.Mui-focused fieldset': {
+                                                            borderColor: '#6366f1',
+                                                            borderWidth: 2
+                                                        }
+                                                    }}
+                                                >
+                                                    <MenuItem value="Supplier">Supplier Order</MenuItem>
+                                                    <MenuItem value="Customer">Customer Order</MenuItem>
+                                                </Select>
+                                            </FormControl>
+                                        </Grid>
+
+                                        <Grid item xs={12}>
+                                            <TextField
+                                                label="Order ID"
+                                                name="orderId"
+                                                value={formData.orderId}
+                                                onChange={handleChange}
+                                                required
+                                                fullWidth
+                                                className="input-3d"
+                                                sx={{ 
+                                                    '& .MuiOutlinedInput-root': {
+                                                        borderRadius: 2,
+                                                        '&.Mui-focused fieldset': {
+                                                            borderColor: '#6366f1',
+                                                            borderWidth: 2
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </Grid>
+
+                                        <Grid item xs={12}>
+                                            <TextField
+                                                label="Amount"
+                                                name="amount"
+                                                type="number"
+                                                value={formData.amount}
+                                                onChange={handleChange}
+                                                required
+                                                fullWidth
+                                                className="input-3d"
+                                                InputProps={{ inputProps: { min: 0, step: 0.01 } }}
+                                                sx={{ 
+                                                    '& .MuiOutlinedInput-root': {
+                                                        borderRadius: 2,
+                                                        '&.Mui-focused fieldset': {
+                                                            borderColor: '#6366f1',
+                                                            borderWidth: 2
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </Grid>
+
+                                        <Grid item xs={12}>
+                                            <FormControl fullWidth>
+                                                <InputLabel>Status</InputLabel>
+                                                <Select
+                                                    name="status"
+                                                    value={formData.status}
+                                                    onChange={handleChange}
+                                                    label="Status"
+                                                    required
+                                                    className="input-3d"
+                                                    sx={{ 
+                                                        borderRadius: 2,
+                                                        '&.Mui-focused fieldset': {
+                                                            borderColor: '#6366f1',
+                                                            borderWidth: 2
+                                                        }
+                                                    }}
+                                                >
+                                                    <MenuItem value="PENDING">Pending</MenuItem>
+                                                    <MenuItem value="COMPLETED">Completed</MenuItem>
+                                                </Select>
+                                            </FormControl>
+                                        </Grid>
+
+                                        <Grid item xs={12}>
+                                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                                <motion.div
+                                                    whileHover={{ scale: 1.02 }}
+                                                    whileTap={{ scale: 0.98 }}
+                                                >
+                                                    <Button
+                                                        type="submit"
+                                                        variant="contained"
+                                                        color="primary"
+                                                        disabled={isLoading}
+                                                        fullWidth
+                                                        className="btn-3d btn-3d-primary"
+                                                        sx={{ 
+                                                            background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                                                            boxShadow: '0 6px 12px rgba(99, 102, 241, 0.3)',
+                                                            borderRadius: 2,
+                                                            textTransform: 'none',
+                                                            fontWeight: 'bold',
+                                                            py: 1.2,
+                                                            px: 3
+                                                        }}
+                                                    >
+                                                        {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Add Order'}
+                                                    </Button>
+                                                </motion.div>
+                                                <Button
+                                                    variant="outlined"
+                                                    onClick={handleReset}
+                                                    disabled={isLoading}
+                                                    className="btn-3d"
+                                                    sx={{ 
+                                                        borderRadius: 2,
+                                                        textTransform: 'none',
+                                                        borderColor: 'rgba(99, 102, 241, 0.5)',
+                                                        color: '#6366f1',
+                                                        '&:hover': {
+                                                            borderColor: '#6366f1',
+                                                            backgroundColor: 'rgba(99, 102, 241, 0.05)'
+                                                        }
+                                                    }}
+                                                >
+                                                    Reset
+                                                </Button>
+                                            </Box>
+                                        </Grid>
                                     </Grid>
-                                    <Grid item xs={12} sm={3}>
+                                </Box>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </Grid>
+            )}
+
+            {activeTab === 1 && (
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <Card className="card-3d" sx={{ borderRadius: 3 }}>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom sx={{ 
+                                    background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    fontWeight: 'bold'
+                                }}>
+                                    View/Update Order
+                                </Typography>
+                                <Box sx={{ mb: 3 }}>
+                                    <Box sx={{ display: 'flex', gap: 2 }}>
                                         <TextField
+                                            label="Order ID"
+                                            value={formData.orderId}
+                                            onChange={handleChange}
                                             fullWidth
-                                            label="Quantity"
-                                            type="number"
-                                            value={product.quantity}
-                                            onChange={(e) => handleProductChange(index, 'quantity', parseInt(e.target.value))}
-                                            required
+                                            className="input-3d"
+                                            sx={{ 
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: 2,
+                                                    '&.Mui-focused fieldset': {
+                                                        borderColor: '#6366f1',
+                                                        borderWidth: 2
+                                                    }
+                                                }
+                                            }}
                                         />
-                                    </Grid>
-                                    <Grid item xs={12} sm={3}>
-                                        <TextField
-                                            fullWidth
-                                            label="Price"
-                                            type="number"
-                                            value={product.price}
-                                            onChange={(e) => handleProductChange(index, 'price', parseFloat(e.target.value))}
-                                            required
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} sm={2}>
-                                        <Button 
-                                            onClick={() => removeProductField(index)}
-                                            disabled={formData.products.length === 1}
-                                            fullWidth
-                                            variant="outlined"
-                                            color="error"
+                                        <motion.div
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
                                         >
-                                            Remove
-                                        </Button>
-                                    </Grid>
-                                </Grid>
-                            ))}
-                            <Button
-                                onClick={addProductField}
-                                variant="outlined"
-                                sx={{ mt: 2 }}
-                            >
-                                Add Product
-                            </Button>
-                            <Typography variant="h6" sx={{ mt: 2 }}>
-                                Total Amount: ${formData.totalAmount.toFixed(2)}
-                            </Typography>
-                        </>
-                    ) : (
-                        <FormControl fullWidth margin="normal">
-                            <InputLabel>Status</InputLabel>
-                            <Select
-                                value={formData.status}
-                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                label="Status"
-                            >
-                                <MenuItem value="PENDING">Pending</MenuItem>
-                                <MenuItem value="PROCESSING">Processing</MenuItem>
-                                <MenuItem value="COMPLETED">Completed</MenuItem>
-                                <MenuItem value="CANCELLED">Cancelled</MenuItem>
-                            </Select>
-                        </FormControl>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDialog} disabled={isLoading}>
-                        Cancel
-                    </Button>
-                    <Button onClick={handleSubmit} color="primary" disabled={isLoading}>
-                        {selectedOrder ? 'Update Status' : 'Create Order'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                                            <Button
+                                                variant="contained"
+                                                onClick={() => {
+                                                    setActiveTab(0);
+                                                    handleEdit(selectedOrder);
+                                                }}
+                                                disabled={isLoading}
+                                                className="btn-3d btn-3d-primary"
+                                                sx={{ 
+                                                    background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                                                    boxShadow: '0 6px 12px rgba(99, 102, 241, 0.3)',
+                                                    borderRadius: 2,
+                                                    textTransform: 'none',
+                                                    fontWeight: 'bold',
+                                                    py: 1.2,
+                                                    px: 3
+                                                }}
+                                            >
+                                                {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Get Order'}
+                                            </Button>
+                                        </motion.div>
+                                    </Box>
+                                </Box>
+
+                                {selectedOrder && (
+                                    <>
+                                        <Box component="form" onSubmit={handleSubmit}>
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={12}>
+                                                    <FormControl fullWidth>
+                                                        <InputLabel>Order Type</InputLabel>
+                                                        <Select
+                                                            name="orderType"
+                                                            value={formData.orderType}
+                                                            onChange={handleChange}
+                                                            label="Order Type"
+                                                            required
+                                                            className="input-3d"
+                                                            sx={{ 
+                                                                borderRadius: 2,
+                                                                '&.Mui-focused fieldset': {
+                                                                    borderColor: '#6366f1',
+                                                                    borderWidth: 2
+                                                                }
+                                                            }}
+                                                        >
+                                                            <MenuItem value="Supplier">Supplier Order</MenuItem>
+                                                            <MenuItem value="Customer">Customer Order</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                </Grid>
+
+                                                <Grid item xs={12}>
+                                                    <TextField
+                                                        label="Amount"
+                                                        name="amount"
+                                                        type="number"
+                                                        value={formData.amount}
+                                                        onChange={handleChange}
+                                                        required
+                                                        fullWidth
+                                                        className="input-3d"
+                                                        InputProps={{ inputProps: { min: 0, step: 0.01 } }}
+                                                        sx={{ 
+                                                            '& .MuiOutlinedInput-root': {
+                                                                borderRadius: 2,
+                                                                '&.Mui-focused fieldset': {
+                                                                    borderColor: '#6366f1',
+                                                                    borderWidth: 2
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                </Grid>
+
+                                                <Grid item xs={12}>
+                                                    <FormControl fullWidth>
+                                                        <InputLabel>Status</InputLabel>
+                                                        <Select
+                                                            name="status"
+                                                            value={formData.status}
+                                                            onChange={handleChange}
+                                                            label="Status"
+                                                            required
+                                                            className="input-3d"
+                                                            sx={{ 
+                                                                borderRadius: 2,
+                                                                '&.Mui-focused fieldset': {
+                                                                    borderColor: '#6366f1',
+                                                                    borderWidth: 2
+                                                                }
+                                                            }}
+                                                        >
+                                                            <MenuItem value="PENDING">Pending</MenuItem>
+                                                            <MenuItem value="COMPLETED">Completed</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                </Grid>
+
+                                                <Grid item xs={12}>
+                                                    <Box sx={{ display: 'flex', gap: 2 }}>
+                                                        <motion.div
+                                                            whileHover={{ scale: 1.02 }}
+                                                            whileTap={{ scale: 0.98 }}
+                                                        >
+                                                            <Button
+                                                                type="submit"
+                                                                variant="contained"
+                                                                color="primary"
+                                                                disabled={isLoading}
+                                                                fullWidth
+                                                                className="btn-3d btn-3d-primary"
+                                                                sx={{ 
+                                                                    background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                                                                    boxShadow: '0 6px 12px rgba(99, 102, 241, 0.3)',
+                                                                    borderRadius: 2,
+                                                                    textTransform: 'none',
+                                                                    fontWeight: 'bold',
+                                                                    py: 1.2,
+                                                                    px: 3
+                                                                }}
+                                                            >
+                                                                {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Update Order'}
+                                                            </Button>
+                                                        </motion.div>
+                                                        <Button
+                                                            variant="outlined"
+                                                            onClick={handleReset}
+                                                            disabled={isLoading}
+                                                            className="btn-3d"
+                                                            sx={{ 
+                                                                borderRadius: 2,
+                                                                textTransform: 'none',
+                                                                borderColor: 'rgba(99, 102, 241, 0.5)',
+                                                                color: '#6366f1',
+                                                                '&:hover': {
+                                                                    borderColor: '#6366f1',
+                                                                    backgroundColor: 'rgba(99, 102, 241, 0.05)'
+                                                                }
+                                                            }}
+                                                        >
+                                                            Reset
+                                                        </Button>
+                                                    </Box>
+                                                </Grid>
+                                            </Grid>
+                                        </Box>
+
+                                        <Divider sx={{ my: 3 }} />
+
+                                        <Typography variant="h6" gutterBottom sx={{ 
+                                            background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                                            WebkitBackgroundClip: 'text',
+                                            WebkitTextFillColor: 'transparent',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            Order Details
+                                        </Typography>
+                                        <Grid container spacing={2}>
+                                            <Grid item xs={12}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                                                    <Avatar 
+                                                        sx={{ 
+                                                            backgroundColor: 'primary.light',
+                                                            color: 'primary.main',
+                                                            fontWeight: 'bold',
+                                                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                                                        }}
+                                                    >
+                                                        {selectedOrder.orderType?.substring(0, 1)}
+                                                    </Avatar>
+                                                    <Box>
+                                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                                                            Order ID: {selectedOrder.orderId}
+                                                        </Typography>
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            {selectedOrder.orderType} Order
+                                                        </Typography>
+                                                    </Box>
+                                                </Box>
+                                            </Grid>
+                                            <Grid item xs={12}>
+                                                <Typography variant="subtitle2" color="text.secondary">
+                                                    Amount
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    ${selectedOrder.amount?.toFixed(2)}
+                                                </Typography>
+                                            </Grid>
+                                            <Grid item xs={12}>
+                                                <Typography variant="subtitle2" color="text.secondary">
+                                                    Status
+                                                </Typography>
+                                                <Typography 
+                                                    variant="body1"
+                                                    sx={{
+                                                        color: selectedOrder.status === 'COMPLETED' ? 'success.main' : 'warning.main',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {selectedOrder.status}
+                                                </Typography>
+                                            </Grid>
+                                            <Grid item xs={12}>
+                                                <Typography variant="subtitle2" color="text.secondary">
+                                                    Order Date
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {new Date(selectedOrder.orderDate).toLocaleString()}
+                                                </Typography>
+                                            </Grid>
+                                        </Grid>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </Grid>
+            )}
 
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
-                <Alert 
-                    onClose={() => setSnackbar({ ...snackbar, open: false })} 
+                <Alert
+                    onClose={handleCloseSnackbar}
                     severity={snackbar.severity}
+                    sx={{ width: '100%' }}
                 >
                     {snackbar.message}
                 </Alert>

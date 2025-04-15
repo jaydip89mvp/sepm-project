@@ -2,41 +2,47 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
   TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
   Typography,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Alert,
-  Snackbar
+  Snackbar,
+  Paper,
+  Grid,
+  Card,
+  CardContent,
+  Divider,
+  Tabs,
+  Tab,
+  CircularProgress,
+  Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton
 } from '@mui/material';
-import { Edit, Delete, Add } from '@mui/icons-material';
+import { 
+  Add as AddIcon, 
+  Person as PersonIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon
+} from '@mui/icons-material';
+import { motion } from 'framer-motion';
 import managerService from '../../../services/managerService';
 
 const EmployeeManagement = () => {
   const [employees, setEmployees] = useState([]);
-  const [roles, setRoles] = useState([]);
   const [open, setOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
-    firstName: '',
-    lastName: '',
     password: '',
-    phoneNumber: '',
+    contact: '',
+    salary: '',
     role: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +51,8 @@ const EmployeeManagement = () => {
     message: '',
     severity: 'success'
   });
+  const [activeTab, setActiveTab] = useState(0);
+  const [roles, setRoles] = useState([]);
 
   useEffect(() => {
     fetchEmployees();
@@ -52,13 +60,13 @@ const EmployeeManagement = () => {
   }, []);
 
   const fetchEmployees = async () => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       const response = await managerService.getAllEmployees();
       setEmployees(response.data || []);
     } catch (error) {
+      console.error('Error fetching employees:', error);
       showSnackbar(error.response?.data?.message || 'Error fetching employees', 'error');
-      setEmployees([]);
     } finally {
       setIsLoading(false);
     }
@@ -67,31 +75,23 @@ const EmployeeManagement = () => {
   const fetchRoles = async () => {
     try {
       const response = await managerService.getEmployeeRoles();
-      console.log(response);
-      if (response.data && Array.isArray(response.data)) {
-        setRoles(response.data);
-      } else {
-        console.error('Invalid roles data:', response.data);
-        setRoles([]);
-        showSnackbar('Error loading roles', 'error');
-      }
+      setRoles(response.data || []);
     } catch (error) {
       console.error('Error fetching roles:', error);
-      setRoles([]);
-      showSnackbar(error.response?.data?.message || 'Error fetching roles', 'error');
+      showSnackbar('Error fetching employee roles', 'error');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email || !formData.firstName || !formData.lastName || !formData.role) {
+    if (!formData.email || !formData.contact || (!selectedEmployee && !formData.password)) {
       showSnackbar('Please fill in all required fields', 'error');
       return;
     }
-    
+
     setIsLoading(true);
     try {
-      if (editMode) {
+      if (selectedEmployee) {
         await managerService.updateEmployee(formData);
         showSnackbar('Employee updated successfully', 'success');
       } else {
@@ -99,11 +99,11 @@ const EmployeeManagement = () => {
         showSnackbar('Employee added successfully', 'success');
       }
       setOpen(false);
-      fetchEmployees();
       resetForm();
+      fetchEmployees();
     } catch (error) {
-      const errorData = managerService.handleError(error);
-      showSnackbar(errorData.message, 'error');
+      console.error('Error processing employee:', error);
+      showSnackbar(error.response?.data?.message || 'Error processing employee', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -112,24 +112,22 @@ const EmployeeManagement = () => {
   const handleDelete = async (email) => {
     try {
       await managerService.deleteEmployee(email);
-      showSnackbar('Employee deleted successfully', 'success');
+      showSnackbar('Employee deactivated successfully', 'success');
       fetchEmployees();
     } catch (error) {
-      const errorData = managerService.handleError(error);
-      showSnackbar(errorData.message, 'error');
+      console.error('Error deactivating employee:', error);
+      showSnackbar(error.response?.data?.message || 'Error deactivating employee', 'error');
     }
   };
 
   const resetForm = () => {
     setFormData({
       email: '',
-      firstName: '',
-      lastName: '',
       password: '',
-      phoneNumber: '',
+      contact: '',
+      salary: '',
       role: ''
     });
-    setEditMode(false);
     setSelectedEmployee(null);
   };
 
@@ -141,163 +139,335 @@ const EmployeeManagement = () => {
     });
   };
 
+  const handleCloseSnackbar = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false
+    });
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h5" color="primary">Employee Management</Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setOpen(true)}
+    <Box className="card-3d-soft" sx={{ p: 4, borderRadius: 3, backgroundColor: 'white' }}>
+      <Box 
+        className="section-title" 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 2, 
+          mb: 4 
+        }}
+      >
+        <PersonIcon 
+          sx={{ 
+            fontSize: 32, 
+            color: 'primary.main',
+            backgroundColor: 'primary.light',
+            p: 1,
+            borderRadius: '50%',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+          }} 
+        />
+        <Typography 
+          variant="h4" 
+          className="section-title"
+          sx={{ 
+            fontWeight: 'bold',
+            background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}
         >
-          Add Employee
-        </Button>
+          Employee Management
+        </Typography>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Email</TableCell>
-              <TableCell>First Name</TableCell>
-              <TableCell>Last Name</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Phone Number</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {employees.map((employee) => (
-              <TableRow key={employee.email}>
-                <TableCell>{employee.email}</TableCell>
-                <TableCell>{employee.firstName}</TableCell>
-                <TableCell>{employee.lastName}</TableCell>
-                <TableCell>{employee.assigned?.name}</TableCell>
-                <TableCell>{employee.phoneNumber}</TableCell>
-                <TableCell>
-                  <IconButton 
-                    onClick={() => {
-                      setSelectedEmployee(employee);
-                      setFormData({
-                        ...employee,
-                        role: employee.assigned?.name
-                      });
-                      setEditMode(true);
-                      setOpen(true);
-                    }}
-                    disabled={isLoading}
-                  >
-                    <Edit />
-                  </IconButton>
-                  <IconButton 
-                    onClick={() => handleDelete(employee.email)}
-                    disabled={isLoading}
-                  >
-                    <Delete />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Dialog 
-        open={open} 
-        onClose={() => {
-          setOpen(false);
-          resetForm();
+      <Tabs 
+        value={activeTab} 
+        onChange={handleTabChange} 
+        sx={{ 
+          mb: 3,
+          '& .MuiTabs-indicator': {
+            background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+          },
+          '& .MuiTab-root': {
+            textTransform: 'none',
+            fontWeight: 'bold',
+            '&.Mui-selected': {
+              color: '#4338ca',
+            },
+          },
         }}
-        maxWidth="sm"
-        fullWidth
       >
-        <DialogTitle>{editMode ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
-        <DialogContent>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Email"
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-              disabled={editMode}
-              required
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="First Name"
-              value={formData.firstName}
-              onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-              required
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Last Name"
-              value={formData.lastName}
-              onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-              required
-            />
-            <FormControl fullWidth margin="normal" required>
-              <InputLabel>Role</InputLabel>
-              <Select
-                value={formData.role}
-                onChange={(e) => setFormData({...formData, role: e.target.value})}
-                label="Role"
-              >
-                {Array.isArray(roles) && roles.length > 0 ? (
-                  roles.map((role) => (
-                    <MenuItem key={role.name} value={role.name}>
-                      {role.name}
-                    </MenuItem>
-                  ))
+        <Tab label="Add New Employee" />
+        <Tab label="View Employees" />
+      </Tabs>
+
+      {activeTab === 0 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Card className="card-3d" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ 
+                  background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontWeight: 'bold'
+                }}>
+                  {selectedEmployee ? 'Update Employee' : 'Add New Employee'}
+                </Typography>
+                <Box component="form" onSubmit={handleSubmit}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        label="Email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        required
+                        fullWidth
+                        disabled={selectedEmployee}
+                        className="input-3d"
+                        sx={{ 
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#6366f1',
+                              borderWidth: 2
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    {!selectedEmployee && (
+                      <Grid item xs={12}>
+                        <TextField
+                          label="Password"
+                          type="password"
+                          value={formData.password}
+                          onChange={(e) => setFormData({...formData, password: e.target.value})}
+                          required
+                          fullWidth
+                          className="input-3d"
+                          sx={{ 
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                              '&.Mui-focused fieldset': {
+                                borderColor: '#6366f1',
+                                borderWidth: 2
+                              }
+                            }
+                          }}
+                        />
+                      </Grid>
+                    )}
+                    <Grid item xs={12}>
+                      <TextField
+                        label="Contact"
+                        value={formData.contact}
+                        onChange={(e) => setFormData({...formData, contact: e.target.value})}
+                        required
+                        fullWidth
+                        className="input-3d"
+                        sx={{ 
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#6366f1',
+                              borderWidth: 2
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        label="Salary"
+                        type="number"
+                        value={formData.salary}
+                        onChange={(e) => setFormData({...formData, salary: e.target.value})}
+                        required
+                        fullWidth
+                        className="input-3d"
+                        sx={{ 
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#6366f1',
+                              borderWidth: 2
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <FormControl fullWidth className="input-3d">
+                        <InputLabel>Role</InputLabel>
+                        <Select
+                          value={formData.role}
+                          onChange={(e) => setFormData({...formData, role: e.target.value})}
+                          required
+                          sx={{ 
+                            borderRadius: 2,
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#6366f1',
+                              borderWidth: 2
+                            }
+                          }}
+                        >
+                          {roles.map((role) => (
+                            <MenuItem key={role.id} value={role.id}>
+                              {role.name.replace('EMPLOYEE_', '')}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <Button
+                            type="submit"
+                            variant="contained"
+                            color="primary"
+                            disabled={isLoading}
+                            fullWidth
+                            className="btn-3d btn-3d-primary"
+                            sx={{ 
+                              background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                              boxShadow: '0 6px 12px rgba(99, 102, 241, 0.3)',
+                              borderRadius: 2,
+                              textTransform: 'none',
+                              fontWeight: 'bold',
+                              py: 1.2,
+                              px: 3
+                            }}
+                          >
+                            {isLoading ? <CircularProgress size={24} color="inherit" /> : (selectedEmployee ? 'Update' : 'Add')}
+                          </Button>
+                        </motion.div>
+                        <Button
+                          variant="outlined"
+                          onClick={resetForm}
+                          disabled={isLoading}
+                          className="btn-3d"
+                          sx={{ 
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            borderColor: 'rgba(99, 102, 241, 0.5)',
+                            color: '#6366f1',
+                            '&:hover': {
+                              borderColor: '#6366f1',
+                              backgroundColor: 'rgba(99, 102, 241, 0.05)'
+                            }
+                          }}
+                        >
+                          Reset
+                        </Button>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {activeTab === 1 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Card className="card-3d" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ 
+                  background: 'linear-gradient(45deg, #4338ca 30%, #6366f1 90%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontWeight: 'bold'
+                }}>
+                  Employees List
+                </Typography>
+                {isLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                    <CircularProgress />
+                  </Box>
                 ) : (
-                  <MenuItem disabled value="">
-                    No roles available
-                  </MenuItem>
+                  <List>
+                    {employees.length === 0 ? (
+                      <ListItem>
+                        <ListItemText primary="No employees found" />
+                      </ListItem>
+                    ) : (
+                      employees.map((employee) => (
+                        <ListItem 
+                          key={employee.email}
+                          sx={{
+                            backgroundColor: 'rgba(99, 102, 241, 0.05)',
+                            borderRadius: 2,
+                            mb: 1,
+                            '&:hover': {
+                              backgroundColor: 'rgba(99, 102, 241, 0.1)'
+                            }
+                          }}
+                        >
+                          <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+                            {employee.email.charAt(0).toUpperCase()}
+                          </Avatar>
+                          <ListItemText 
+                            primary={employee.email}
+                            secondary={`Contact: ${employee.contact} | Salary: $${employee.salary}`}
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton 
+                              edge="end" 
+                              aria-label="edit"
+                              onClick={() => {
+                                setSelectedEmployee(employee);
+                                setFormData({
+                                  email: employee.email,
+                                  contact: employee.contact,
+                                  salary: employee.salary,
+                                  role: employee.role?.id
+                                });
+                                setActiveTab(0);
+                              }}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton 
+                              edge="end" 
+                              aria-label="delete"
+                              onClick={() => handleDelete(employee.email)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      ))
+                    )}
+                  </List>
                 )}
-              </Select>
-            </FormControl>
-            {!editMode && (
-              <TextField
-                fullWidth
-                margin="normal"
-                label="Password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                required
-              />
-            )}
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Phone Number"
-              value={formData.phoneNumber}
-              onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              type="submit"
-              sx={{ mt: 2 }}
-              disabled={isLoading}
-            >
-              {editMode ? 'Update' : 'Add'}
-            </Button>
-          </Box>
-        </DialogContent>
-      </Dialog>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
 
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
+          sx={{ width: '100%' }}
         >
           {snackbar.message}
         </Alert>
