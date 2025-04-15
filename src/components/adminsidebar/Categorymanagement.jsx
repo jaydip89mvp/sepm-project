@@ -136,34 +136,34 @@ const CategoryManagement = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this category?")) {
-      return;
-    }
+  // const handleDelete = async (id) => {
+  //   if (!window.confirm("Are you sure you want to delete this category?")) {
+  //     return;
+  //   }
     
-    try {
-      const response = await adminService.deleteCategory(id);
-      if (response.success) {
-        showSnackbar(response.message || "Category deleted successfully");
-        fetchCategories();
-      } else {
-        showSnackbar(response.message || "Failed to delete category", "error");
-      }
-    } catch (err) {
-      console.error("Error deleting category:", err);
-      showSnackbar("Error deleting category. Please try again.", "error");
-    }
-  };
+  //   try {
+  //     const response = await adminService.deleteCategory(id);
+  //     if (response.success) {
+  //       showSnackbar(response.message || "Category deleted successfully");
+  //       fetchCategories();
+  //     } else {
+  //       showSnackbar(response.message || "Failed to delete category", "error");
+  //     }
+  //   } catch (err) {
+  //     console.error("Error deleting category:", err);
+  //     showSnackbar("Error deleting category. Please try again.", "error");
+  //   }
+  // };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
+  // const containerVariants = {
+  //   hidden: { opacity: 0 },
+  //   visible: {
+  //     opacity: 1,
+  //     transition: {
+  //       staggerChildren: 0.1,
+  //     },
+  //   },
+  // };
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
@@ -235,7 +235,6 @@ const CategoryManagement = () => {
 
       {/* Category Table */}
       <motion.div
-        variants={containerVariants}
         initial="hidden"
         animate="visible"
         style={{ borderRadius: "1rem" }}
@@ -245,9 +244,9 @@ const CategoryManagement = () => {
             <TableHead sx={{ backgroundColor: "rgba(242, 242, 247, 0.8)" }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: "bold" }}>Category</TableCell>
-                <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                {/* <TableCell align="right" sx={{ fontWeight: "bold" }}>
                   Actions
-                </TableCell>
+                </TableCell> */}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -268,7 +267,7 @@ const CategoryManagement = () => {
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell align="right">
+                  {/* <TableCell align="right">
                     <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
                       <Tooltip title="Delete Category" arrow>
                         <IconButton
@@ -281,7 +280,7 @@ const CategoryManagement = () => {
                         </IconButton>
                       </Tooltip>
                     </Box>
-                  </TableCell>
+                  </TableCell> */}
                 </motion.tr>
               ))}
             </TableBody>

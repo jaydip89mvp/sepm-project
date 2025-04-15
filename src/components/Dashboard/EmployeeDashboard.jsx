@@ -71,12 +71,6 @@ const EmployeeDashboard = () => {
       className: activeSection === 'add-product' ? 'active-dock-item' : ''
     },
     { 
-      icon: <FaSync size={22} />, 
-      label: 'Update Stock', 
-      onClick: () => setActiveSection('update-stock'),
-      className: activeSection === 'update-stock' ? 'active-dock-item' : ''
-    },
-    { 
       icon: <FaCloudUploadAlt size={24} />, 
       label: 'Request Stock', 
       onClick: () => setActiveSection('request-stock'),
@@ -87,12 +81,6 @@ const EmployeeDashboard = () => {
       label: 'Low Stock', 
       onClick: () => setActiveSection('low-stock'),
       className: activeSection === 'low-stock' ? 'active-dock-item' : ''
-    },
-    { 
-      icon: <FaHistory size={22} />, 
-      label: 'History', 
-      onClick: () => setActiveSection('stock-history'),
-      className: activeSection === 'stock-history' ? 'active-dock-item' : ''
     },
     { icon: <LogoutIcon />, label: 'Logout', onClick: () => setLogoutDialogOpen(true), className: '' }
   ];
