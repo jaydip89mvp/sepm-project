@@ -105,7 +105,7 @@ const ProductsTable = () => {
         
         setEditingProduct(null);
         showSnackbar('Product updated successfully');
-        fetchProducts();
+        fetchProducts()
       } else {
         showSnackbar(response.message || 'Failed to update product', 'error');
       }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Paper, Typography, TextField, Button, Snackbar, Alert, Box,
-  FormControl, InputLabel, Select, MenuItem, CircularProgress
+  CircularProgress
 } from '@mui/material';
 import { Inventory2, Delete, Save } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -12,7 +12,6 @@ const AddProduct = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState([]);
   const [product, setProduct] = useState({
     name: '',
     subCategory: '',
@@ -32,8 +31,6 @@ const AddProduct = () => {
       fetchProduct();
     }
   }, [productId]);
-
-  
 
   const fetchProduct = async () => {
     setLoading(true);
@@ -68,11 +65,14 @@ const AddProduct = () => {
     if (!product.name.trim()) {
       newErrors.name = 'Product name is required';
     }
-    if (product.stockLevel < 0) {
-      newErrors.stockLevel = 'Stock level cannot be negative';
+    if (!product.subCategory.trim()) {
+      newErrors.subCategory = 'Subcategory is required';
     }
-    if (product.reorderLevel < 0) {
-      newErrors.reorderLevel = 'Reorder level cannot be negative';
+    if (product.stockLevel < 0 || product.stockLevel === '') {
+      newErrors.stockLevel = 'Stock level is required and cannot be negative';
+    }
+    if (product.reorderLevel < 0 || product.reorderLevel === '') {
+      newErrors.reorderLevel = 'Reorder level is required and cannot be negative';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -113,7 +113,9 @@ const AddProduct = () => {
   };
 
   const handleDelete = async () => {
-    
+    if (!window.confirm('Are you sure you want to delete this product?')) {
+      return;
+    }
 
     setLoading(true);
     try {
@@ -172,15 +174,16 @@ const AddProduct = () => {
                 }}
               />
               
-              
               <TextField
                 fullWidth
                 name="subCategory"
                 label="Subcategory"
                 value={product.subCategory}
                 onChange={handleChange}
+                error={!!errors.subCategory}
+                helperText={errors.subCategory}
+                required
               />
-              
               
               <TextField
                 fullWidth
@@ -192,6 +195,7 @@ const AddProduct = () => {
                 error={!!errors.stockLevel}
                 helperText={errors.stockLevel}
                 InputProps={{ inputProps: { min: 0 } }}
+                required
               />
               
               <TextField
@@ -204,6 +208,7 @@ const AddProduct = () => {
                 error={!!errors.reorderLevel}
                 helperText={errors.reorderLevel}
                 InputProps={{ inputProps: { min: 0 } }}
+                required
               />
             </Box>
             

@@ -104,14 +104,10 @@ const EmployeeDashboard = () => {
         return <ProductsTable />;
       case 'add-product':
         return <AddProduct />;
-      case 'update-stock':
-        return <UpdateStock />;
       case 'request-stock':
         return <RequestStock />;
       case 'low-stock':
         return <LowStockAlerts />;
-      case 'stock-history':
-        return <StockHistory />;
       default:
         return <ProductsTable />;
     }
