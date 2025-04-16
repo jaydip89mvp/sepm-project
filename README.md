@@ -1,219 +1,170 @@
-# Inventory Management System
+# Inventory Management System (IMS)
 
-A comprehensive inventory management system built with Spring Boot and React, featuring role-based access control, real-time inventory tracking, and automated reporting.
+## Table of Contents
+1. [Project Overview](#project-overview)
+2. [Features](#features)
+3. [System Requirements](#system-requirements)
+4. [Installation Guide](#installation-guide)
+5. [User Interface Guide](#user-interface-guide)
+6. [API Documentation](#api-documentation)
+7. [Troubleshooting](#troubleshooting)
+8. [Support](#support)
+
+## Project Overview
+The Inventory Management System (IMS) is a comprehensive web-based solution designed to streamline inventory tracking, order management, and stock control. The system consists of a React-based frontend and a Spring Boot backend, providing a robust and scalable platform for businesses to manage their inventory efficiently.
+
+### Architecture
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
+│   React Frontend│ <── │   Spring Boot    │ <── │  Database   │
+│   (Vite)       │ ──> │   Backend API    │ ──> │  (MongoDB)  │
+└─────────────────┘     └──────────────────┘     └─────────────┘
+```
 
 ## Features
+- User Authentication and Authorization
+- Dashboard with Real-time Analytics
+- Inventory Management
+  - Stock tracking
+  - Product categories
+  - Stock alerts
+- Order Management
+- Supplier Management
+- Reports Generation
+- User Management
 
-### Core Features
-- **Role-Based Access Control**
-  - Admin: Full system access
-  - Manager: Department-specific management
-  - Employee: Basic inventory operations
-  - Supplier: Product management and order tracking
+## System Requirements
+### Frontend Requirements
+- Node.js (v14.0 or higher)
+- npm (v6.0 or higher)
 
-- **Inventory Management**
-  - Product categorization
-  - Stock level monitoring
-  - Low stock alerts
-  - Stock history tracking
-  - Automated reorder suggestions
+### Backend Requirements
+- Java JDK 17 or higher
+- Maven 3.6 or higher
+- MongoDB 6.0 or higher
 
-- **Order Management**
-  - Customer order processing
-  - Supplier order management
-  - Order status tracking
-  - Payment processing
+## Installation Guide
 
-- **Reporting**
-  - Sales reports
-  - Inventory reports
-  - Financial reports
-  - Custom report generation
+### Frontend Setup
+1. Clone the repository
+   ```bash
+   git clone [repository-url]
+   cd imsfrontend
+   ```
 
-### Technical Features
-- **Frontend**
-  - React with Material-UI
-  - Responsive design
-  - Real-time updates
-  - Form validation
-  - Error handling
+2. Install dependencies
+   ```bash
+   npm install
+   ```
 
-- **Backend**
-  - Spring Boot REST API
-  - JWT authentication
-  - Role-based authorization
-  - Data validation
-  - Exception handling
+3. Configure environment variables
+   Create a `.env` file in the root directory with the following content:
+   ```
+   VITE_API_URL=http://localhost:8080
+   ```
 
-## System Architecture
+4. Start the development server
+   ```bash
+   npm run dev
+   ```
+   The application will be available at `http://localhost:5173`
 
-### Frontend Structure
-```
-src/
-├── components/
-│   ├── adminsidebar/
-│   │   ├── Categorymanagement.jsx
-│   │   ├── Managermanagement.jsx
-│   │   ├── Report.jsx
-│   │   └── Suppliermanagement.jsx
-│   ├── Dashboard/
-│   │   └── sections/
-│   │       └── EmployeeManagement.jsx
-│   └── ...
-├── services/
-│   ├── adminService.js
-│   ├── employeeService.js
-│   └── ...
-└── ...
-```
+### Backend Setup
+1. Navigate to the backend directory
+   ```bash
+   cd inventory-management
+   ```
 
-### Backend Structure
-```
-src/main/java/com/inventory/
-├── controller/
-│   ├── AdminController.java
-│   ├── EmployeeController.java
-│   └── ...
-├── model/
-│   ├── Employee.java
-│   ├── Role.java
-│   ├── Supplier.java
-│   └── ...
-├── repository/
-│   ├── EmployeeRepository.java
-│   ├── RoleRepository.java
-│   └── ...
-└── service/
-    ├── AdminService.java
-    ├── EmployeeService.java
-    └── ...
-```
+2. Configure MongoDB database
+   Update `src/main/resources/application.properties` with your MongoDB connection string:
+   ```properties
+   spring.data.mongodb.uri=mongodb://localhost:27017/inventory_management
+   ```
 
-## Getting Started
+3. Build the project
+   ```bash
+   mvn clean install
+   ```
 
-### Prerequisites
-- Java 17 or higher
-- Node.js 16 or higher
-- Maven
-- MySQL 8.0 or higher
+4. Run the application
+   ```bash
+   mvn spring-boot:run
+   ```
+   The backend server will start at `http://localhost:8080`
 
-### Installation
+## User Interface Guide
 
-1. **Backend Setup**
-```bash
-# Clone the repository
-git clone [repository-url]
+### Login Page
+- Enter your credentials to access the system
+- Use the "Forgot Password" link if needed
 
-# Navigate to backend directory
-cd inventory-management
+### Dashboard
+- Overview of key metrics
+- Quick access to main features
+- Real-time alerts and notifications
 
-# Build the project
-mvn clean install
+### Inventory Management
+- Add/Edit/Delete products
+- Manage categories
+- Track stock levels
+- Set stock alerts
 
-# Run the application
-mvn spring-boot:run
-```
+### Order Management
+- Create new orders
+- Track order status
+- Manage order history
 
-2. **Frontend Setup**
-```bash
-# Navigate to frontend directory
-cd Inventory-Management-System
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm start
-```
-
-### Configuration
-
-1. **Backend Configuration**
-- Update `application.properties` with your database credentials:
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/inventory_db
-spring.datasource.username=your_username
-spring.datasource.password=your_password
-```
-
-2. **Frontend Configuration**
-- Update API endpoints in service files if needed
-- Configure environment variables in `.env` file
+### Reports
+- Generate various reports
+- Export data in different formats
+- Customize report parameters
 
 ## API Documentation
 
-### Authentication Endpoints
-- `POST /login` - User authentication
-- `POST /logout` - User logout
-
-### Admin Endpoints
-- `GET /admin/employees` - Get all employees
-- `POST /admin/employees` - Add new employee
-- `PUT /admin/employees` - Update employee
-- `DELETE /admin/employees/{id}` - Delete employee
-
-### Employee Endpoints
-- `GET /employee/products` - Get all products
-- `POST /employee/orders` - Create new order
-- `GET /employee/stock` - Get stock information
-
-### Supplier Endpoints
-- `GET /supplier/products` - Get supplier products
-- `POST /supplier/orders` - Create supplier order
-- `GET /supplier/payments` - Get payment history
-
-## Security
-
 ### Authentication
-- JWT-based authentication
-- Token expiration handling
-- Secure password storage
+- POST `/api/auth/login`
+- POST `/api/auth/logout`
 
-### Authorization
-- Role-based access control
-- Endpoint security
-- CSRF protection
+### Inventory Endpoints
+- GET `/api/products`
+- POST `/api/products`
+- PUT `/api/products/{id}`
+- DELETE `/api/products/{id}`
 
-## Error Handling
+### Order Endpoints
+- GET `/api/orders`
+- POST `/api/orders`
+- PUT `/api/orders/{id}`
 
-### Frontend
-- Form validation
-- API error handling
-- User-friendly error messages
+For detailed API documentation, please refer to the Swagger UI available at:
+`http://localhost:8080/swagger-ui.html`
 
-### Backend
-- Global exception handling
-- Custom exceptions
-- Error logging
+## Troubleshooting
 
-## Testing
+### Common Issues
 
-### Backend Testing
-```bash
-# Run all tests
-mvn test
+1. Frontend Connection Issues
+   - Verify API URL in `.env` file
+   - Check if backend server is running
+   - Confirm CORS settings
 
-# Run specific test class
-mvn test -Dtest=EmployeeServiceTest
-```
+2. Backend Issues
+   - Verify database connection
+   - Check application logs
+   - Ensure correct Java version
 
-## Deployment
+3. Database Issues
+   - Verify MongoDB service is running
+   - Check MongoDB connection string
+   - Ensure MongoDB is installed and running on port 27017
+   - Check if the database and collections exist
+   - Verify MongoDB user permissions
 
-### Backend Deployment
-1. Build the JAR file:
-```bash
-mvn clean package
-```
+## Support
+For additional support or to report issues:
+- Create an issue in the project repository
+- Contact the development team at [ashukirjat@gmail.com]
+- Check the documentation in the project wiki
 
-2. Deploy the JAR file to your server:
-```bash
-java -jar target/inventory-management-1.0.0.jar
-```
-
-### Frontend Deployment
-1. Build the production version:
-```bash
-npm run build
-```
-
-2. Deploy the build folder to your web server
+---
+© 2024 Inventory Management System. All rights reserved.
